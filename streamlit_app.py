@@ -67,6 +67,7 @@ CSS_STYLES = """
         border: 2px solid #e0e0e0;
         box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         background: #f8f9fa;
+        overflow-y: auto !important;
     }
     
     /* Allow page scroll for chat messages */
@@ -509,7 +510,7 @@ def main():
     <div style="display: flex; flex-direction: column; overflow: hidden;">
         <div class="chat-title">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 24px;">🧑‍⚕️</span>
+                <span style="font-size: 24px;">🏥</span>
                 <span>AI Tư vấn Tâm lý</span>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; line-height: 1.2;">
@@ -552,10 +553,10 @@ def main():
             ''', unsafe_allow_html=True)
             
             if message["role"] == "user":
-                with st.chat_message("user"):
+                with st.chat_message("user", avatar="👤"):
                     st.write(message["content"])
             else:
-                with st.chat_message("assistant"):
+                with st.chat_message("assistant", avatar="👨‍⚕️"):
                     st.write(message["content"])
                     
                     # Show audio if available
