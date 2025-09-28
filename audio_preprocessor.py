@@ -92,8 +92,31 @@ class AudioPreprocessor:
                         audio = librosa.to_mono(audio)
                     logger.info(f"Loaded audio with soundfile: {audio.shape}, sample_rate: {sr}")
                 except Exception as sf_error:
-                    logger.error(f"Both librosa and soundfile failed: {sf_error}")
-                    raise Exception(f"Could not load audio file. Librosa error: {librosa_error}, Soundfile error: {sf_error}")
+                    logger.warning(f"Soundfile failed: {sf_error}")
+                    # Try with pydub as final fallback (for MP4/M4A files)
+                    try:
+                        from pydub import AudioSegment
+                        logger.info("Trying pydub for MP4/M4A files...")
+                        
+                        # Load with pydub
+                        audio_segment = AudioSegment.from_file(file_path)
+                        
+                        # Convert to numpy array
+                        audio = np.array(audio_segment.get_array_of_samples())
+                        
+                        # Reshape if stereo
+                        if audio_segment.channels == 2:
+                            audio = audio.reshape((-1, 2))
+                            audio = librosa.to_mono(audio.T)
+                        else:
+                            audio = audio.astype(np.float32) / 32768.0  # Convert to float32
+                        
+                        sr = audio_segment.frame_rate
+                        logger.info(f"Loaded audio with pydub: {audio.shape}, sample_rate: {sr}")
+                        
+                    except Exception as pydub_error:
+                        logger.error(f"All methods failed: {pydub_error}")
+                        raise Exception(f"Could not load audio file. Librosa: {librosa_error}, Soundfile: {sf_error}, Pydub: {pydub_error}")
             
             # Convert to mono if stereo
             if len(audio.shape) > 1:

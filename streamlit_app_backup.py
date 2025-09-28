@@ -49,17 +49,6 @@ CSS_STYLES = """
         display: none !important;
     }
     
-    /* Ensure file uploader is visible */
-    .stFileUploader {
-        display: block !important;
-        visibility: visible !important;
-    }
-    
-    .stFileUploader > div {
-        display: block !important;
-        visibility: visible !important;
-    }
-    
     /* Main container - Fixed 700px height */
     .main .block-container,
     .stMainBlockContainer, 
@@ -77,8 +66,8 @@ CSS_STYLES = """
         background: #f8f9fa;
     }
     
-    /* Allow page scroll for chat messages */
-    body, html, .stApp {height: 100vh; overflow-y: auto; margin: 0; padding: 0;}
+    /* Prevent page scroll */
+    body, html, .stApp {height: 100vh; overflow: hidden; margin: 0; padding: 0;}
     .stApp > div, .stApp > div > div {margin: 0 !important; padding: 0 !important;}
     
     /* Chat components */
@@ -90,13 +79,9 @@ CSS_STYLES = """
     }
     
            .chat-container {
-               background: #ffffff; 
-               min-height: 60px; 
-               padding: 15px 20px;
-               border-left: 1px solid #e0e0e0; 
-               border-right: 1px solid #e0e0e0;
-               border-bottom: 1px solid #f0f0f0;
-               margin-bottom: 2px;
+               background: #ffffff; height: 400px; overflow-y: auto; padding: 20px;
+               display: flex; flex-direction: column; gap: 10px;
+               border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;
            }
     
     .input-area {
@@ -179,42 +164,10 @@ CSS_STYLES = """
     .message-right .message-avatar {background: #42b883;}
     
     .message-bubble {
-        max-width: 80%; padding: 8px 12px; border-radius: 18px; word-wrap: break-word;
+        max-width: 70%; padding: 8px 12px; border-radius: 18px; word-wrap: break-word;
     }
     .message-left .message-bubble {background: #f0f2f5; color: #1c1e21; border-bottom-left-radius: 4px;}
     .message-right .message-bubble {background: #0084ff; color: white; border-bottom-right-radius: 4px;}
-    
-    /* Custom styling for Streamlit chat messages */
-    .stChatMessage[data-testid="user"] {
-        flex-direction: row-reverse !important;
-    }
-    
-    .stChatMessage[data-testid="user"] .stChatMessage__avatar {
-        order: 2 !important;
-        margin-left: 8px !important;
-        margin-right: 0 !important;
-    }
-    
-    .stChatMessage[data-testid="user"] .stChatMessage__content {
-        order: 1 !important;
-        max-width: 80% !important;
-        background: #0084ff !important;
-        color: white !important;
-        border-radius: 18px !important;
-        border-bottom-right-radius: 4px !important;
-        padding: 8px 12px !important;
-        margin-right: 8px !important;
-        margin-left: 0 !important;
-    }
-    
-    .stChatMessage[data-testid="assistant"] .stChatMessage__content {
-        max-width: 80% !important;
-        background: #f0f2f5 !important;
-        color: #1c1e21 !important;
-        border-radius: 18px !important;
-        border-bottom-left-radius: 4px !important;
-        padding: 8px 12px !important;
-    }
     
     /* Typing indicator */
     .typing-indicator {display: flex; align-items: flex-end; gap: 8px; margin-bottom: 10px;}
@@ -407,10 +360,6 @@ def main():
         st.session_state.is_processing = False
     if 'pending_audio' not in st.session_state:
         st.session_state.pending_audio = None
-    if 'processing_uploaded_audio' not in st.session_state:
-        st.session_state.processing_uploaded_audio = False
-    if 'upload_counter' not in st.session_state:
-        st.session_state.upload_counter = 0
     
     # Check for audio data in URL parameters
     if 'audio_data' in st.query_params:
@@ -423,109 +372,53 @@ def main():
     # Apply CSS
     st.markdown(CSS_STYLES, unsafe_allow_html=True)
     
-    # Main layout - Header only
+    # Main layout - Single HTML structure
     st.markdown('''
     <div style="display: flex; flex-direction: column; overflow: hidden;">
         <div class="chat-title">
             <span style="font-size: 24px;">🧑‍⚕️</span>
             <span>AI Tư vấn Tâm lý</span>
         </div>
+        <div class="chat-container">
     ''', unsafe_allow_html=True)
     
     # Display chat messages
-    print(f"🔍 DEBUG: Total messages in session: {len(st.session_state.messages)}")
-    
-    # Debug info on screen
-    st.sidebar.markdown("## 🔍 Debug Info")
-    st.sidebar.write(f"**Total messages:** {len(st.session_state.messages)}")
-    st.sidebar.write(f"**Processing:** {st.session_state.is_processing}")
-    st.sidebar.write(f"**Processing uploaded:** {st.session_state.processing_uploaded_audio}")
-    st.sidebar.write(f"**Upload counter:** {st.session_state.upload_counter}")
-    
-    # Clear session button
-    if st.sidebar.button("🗑️ Clear All Messages"):
-        st.session_state.messages = []
-        st.session_state.processing_uploaded_audio = False
-        st.rerun()
-    
-    # Test message display
-    if len(st.session_state.messages) == 0:
-        st.markdown("**No messages yet. Upload an audio file to start!**")
-        
-        # Add a test message to verify display works
-        if st.button("Add Test Message"):
-            st.session_state.messages.append({
-                "role": "user",
-                "content": "This is a test message to verify display works!",
-                "timestamp": "12:34"
-            })
-            st.rerun()
-    
-    print(f"🔍 DEBUG: About to display {len(st.session_state.messages)} messages")
-    
-    # Display each message with structure: chat-container -> stLayoutWrapper -> stChatMessage
-    for i, message in enumerate(st.session_state.messages):
-        print(f"🔍 DEBUG: Message {i}: role={message['role']}, content='{message['content'][:50]}...'")
-        
-        # Create a container that will be styled as chat-container
-        with st.container():
-            # Add CSS class to this container to make it look like chat-container
+    for message in st.session_state.messages:
+        if message["role"] == "user":
             st.markdown(f'''
-            <style>
-            .stContainer:has(.stChatMessage) {{
-                background: #ffffff !important;
-                min-height: 60px !important;
-                padding: 15px 20px !important;
-                border-left: 1px solid #e0e0e0 !important;
-                border-right: 1px solid #e0e0e0 !important;
-                border-bottom: 1px solid #f0f0f0 !important;
-                margin-bottom: 2px !important;
-            }}
-            </style>
+            <div class="message-right">
+                <div class="message-avatar">B</div>
+                <div class="message-bubble">{message["content"]}</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        else:
+            st.markdown(f'''
+            <div class="message-left">
+                <div class="message-avatar">AI</div>
+                <div class="message-bubble">{message["content"]}</div>
+            </div>
             ''', unsafe_allow_html=True)
             
-            if message["role"] == "user":
-                print(f"🔍 DEBUG: Displaying user message: {message['content'][:50]}...")
-                with st.chat_message("user"):
-                    st.write(message["content"])
-            else:
-                print(f"🔍 DEBUG: Displaying AI message: {message['content'][:50]}...")
-                with st.chat_message("assistant"):
-                    st.write(message["content"])
-                    
-                    # Show audio if available
-                    if "audio" in message and message["audio"]:
-                        st.audio(message["audio"], format="audio/wav")
-    
-    # Auto-scroll to bottom after displaying messages
-    st.markdown('''
-    <script>
-    // Auto-scroll to bottom of the page to show latest messages
-    setTimeout(function() {
-        window.scrollTo({
-            top: document.body.scrollHeight,
-            behavior: 'smooth'
-        });
-    }, 100);
-    </script>
-    ''', unsafe_allow_html=True)
+            # Show audio if available
+            if "audio" in message and message["audio"]:
+                st.audio(message["audio"], format="audio/wav")
     
     # Typing indicator
     if st.session_state.is_processing:
-        with st.container():
-            st.markdown('''
-            <div class="typing-indicator">
-                <div class="message-avatar">AI</div>
-                <div class="typing-bubble">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
+        st.markdown('''
+        <div class="typing-indicator">
+            <div class="message-avatar">AI</div>
+            <div class="typing-bubble">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
             </div>
-            ''', unsafe_allow_html=True)
+        </div>
+        ''', unsafe_allow_html=True)
     
     # Complete layout with input only
     st.markdown('''
+        </div>
         <div class="input-area">
             <div class="input-container" id="inputContainer">
                 <button class="voice-btn" id="voiceBtn">
@@ -633,6 +526,8 @@ def main():
     }
     
     function triggerFileUpload() {
+        console.log('🎤 Microphone button clicked - creating file input dialog');
+        console.log("success");
         
         // Create a temporary file input element
         const fileInput = document.createElement('input');
@@ -644,6 +539,7 @@ def main():
         fileInput.addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
+                console.log('📁 File selected:', file.name, file.size, 'bytes');
                 
                 // Show loading screen
                 showLoadingScreen();
@@ -668,6 +564,7 @@ def main():
                         for (const selector of selectors) {
                             audioInput = window.parent.document.querySelector(selector);
                             if (audioInput) {
+                                console.log('✅ Found input with selector:', selector);
                                 break;
                             }
                         }
@@ -721,9 +618,12 @@ def main():
     
     // Listen for messages from Streamlit to hide loading screen
     window.addEventListener('message', function(event) {
+        console.log('Received message:', event.data);
         if (event.data && event.data.type === 'streamlit:processingComplete') {
+            console.log('Processing complete, hiding loading screen...');
             hideLoadingScreen();
         } else if (event.data && event.data.type === 'streamlit:processingError') {
+            console.log('Processing error, hiding loading screen and showing error...');
             hideLoadingScreen();
             showError(event.data.message || 'Có lỗi xảy ra khi xử lý audio');
         }
@@ -749,7 +649,10 @@ def main():
         const parentDoc = window.parent.document;
         const voiceBtn = parentDoc.getElementById('voiceBtn');
         if (voiceBtn) {
+            console.log('Voice button found in parent, adding click listener');
             voiceBtn.addEventListener('click', triggerFileUpload);
+        } else {
+            console.log('Voice button not found in parent');
         }
         
         const messageInput = parentDoc.getElementById('messageInput');
@@ -767,46 +670,18 @@ def main():
     </script>
     ''', height=0)
     
-    # File uploader for audio files (moved to top for testing)
-    st.markdown("---")
-    st.markdown("### 🎤 Upload Audio File")
-    uploaded_audio = st.file_uploader(
-        "Choose an audio file", 
-        type=['wav', 'mp3', 'flac', 'm4a', 'ogg'], 
-        key=f"audio_uploader_{st.session_state.get('upload_counter', 0)}",
-        help="Upload an audio file to transcribe"
-    )
-    st.markdown("---")
-    
     # Handle input from JavaScript (hidden inputs for communication)
     js_text_input = st.text_input("Hidden Text Input", key="text_input_from_js", label_visibility="collapsed")
     js_audio_input = st.text_input("Hidden Audio Input", key="audio_input_from_js", label_visibility="collapsed")
     js_processing_status = st.text_input("Hidden Processing Status", key="processing_status_from_js", label_visibility="collapsed")
     
-    # Debug: Show uploader status
-    st.write(f"🔍 DEBUG: uploaded_audio = {uploaded_audio}")
-    
-    if uploaded_audio:
-        st.success(f"✅ File uploaded: {uploaded_audio.name}")
-        st.write(f"📊 File size: {uploaded_audio.size} bytes")
-        st.write(f"📋 File type: {uploaded_audio.type}")
-        
-        st.sidebar.write(f"**File uploaded:** {uploaded_audio.name}")
-        st.sidebar.write(f"**File size:** {uploaded_audio.size} bytes")
-        
-        # Console.log for file detection
-        st.markdown(f'''
-        <script>
-        console.log("🔍 FILE UPLOADER DETECTED:");
-        console.log("📁 File: {uploaded_audio.name}");
-        console.log("📊 Size: {uploaded_audio.size} bytes");
-        console.log("📋 Type: {uploaded_audio.type}");
-        console.log("✅ File upload successful!");
-        </script>
-        ''', unsafe_allow_html=True)
-    else:
-        st.info("ℹ️ No file uploaded yet")
-        st.sidebar.write("**File uploaded:** None")
+    # Hidden file uploader for audio files
+    uploaded_audio = st.file_uploader(
+        "Upload Audio File", 
+        type=['wav', 'mp3', 'flac', 'm4a', 'ogg'], 
+        key="audio_uploader",
+        label_visibility="collapsed"
+    )
     
     # Process text input
     if js_text_input:
@@ -817,20 +692,18 @@ def main():
             "timestamp": time.strftime("%H:%M")
         })
         st.session_state.is_processing = True
-        # Disable automatic AI response for speech-to-text only mode
-        # response, status = call_counseling_api(user_message, st.session_state.api_url, st.session_state.api_key)
-        # if response:
-        #     audio_data = text_to_speech(response)
-        #     st.session_state.messages.append({
-        #         "role": "assistant", 
-        #         "content": response,
-        #         "timestamp": time.strftime("%H:%M"),
-        #         "audio": audio_data
-        #     })
-        # else:
-        #     st.error(status)
+        response, status = call_counseling_api(user_message, st.session_state.api_url, st.session_state.api_key)
+        if response:
+            audio_data = text_to_speech(response)
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": response,
+                "timestamp": time.strftime("%H:%M"),
+                "audio": audio_data
+            })
+        else:
+            st.error(status)
         st.session_state.is_processing = False
-        print(f"🔍 DEBUG: About to rerun. Total messages: {len(st.session_state.messages)}")
         st.rerun()
     
     # IMPROVED: Process pending audio with better error handling
@@ -839,47 +712,48 @@ def main():
         st.session_state.pending_audio = None  # Clear pending audio
         
         
-        # Use improved audio processing function
-        transcription, status = process_audio_safely(audio_data, max_size_mb=50)
-        
-        if transcription:
-            # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-            print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State:")
-            print(f"📝 Audio content extracted: \"{transcription}\"")
-            print(f"📝 Audio content length: {len(transcription)} characters")
-            print(f"📝 Audio content words: {len(transcription.split())} words")
-            print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State")
+        try:
+            # Use improved audio processing function
+            transcription, status = process_audio_safely(audio_data, max_size_mb=50)
             
-            # Add transcription as user message
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": transcription,
-                "timestamp": time.strftime("%H:%M")
-            })
-            st.session_state.is_processing = True
-            # Disable automatic AI response for speech-to-text only mode
-            # response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
-            # if response:
-            #     audio_data = text_to_speech(response)
-            #     st.session_state.messages.append({
-            #         "role": "assistant", 
-            #         "content": response,
-            #         "timestamp": time.strftime("%H:%M"),
-            #         "audio": audio_data
-            #     })
-            #     print(f"🤖 AI Response: {response}")
-            # else:
-            #     st.error(status)
-            # print(f"❌ API Error: {status}")
-        else:
-            st.error(status)
-            print(f"❌ Transcription Error: {status}")
+            if transcription:
+                # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
+                print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State:")
+                print(f"📝 Audio content extracted: \"{transcription}\"")
+                print(f"📝 Audio content length: {len(transcription)} characters")
+                print(f"📝 Audio content words: {len(transcription.split())} words")
+                print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State")
+                
+                user_message = f"🎤 (Audio) {transcription}"
+                st.session_state.messages.append({
+                    "role": "user", 
+                    "content": user_message,
+                    "timestamp": time.strftime("%H:%M")
+                })
+                st.session_state.is_processing = True
+                response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
+                if response:
+                    audio_data = text_to_speech(response)
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": response,
+                        "timestamp": time.strftime("%H:%M"),
+                        "audio": audio_data
+                    })
+                    print(f"🤖 AI Response: {response}")
+                else:
+                    st.error(status)
+                    print(f"❌ API Error: {status}")
+            else:
+                st.error(status)
+                print(f"❌ Transcription Error: {status}")
             
             st.session_state.is_processing = False
             
             # Send completion message to JavaScript
             st.components.v1.html('''
             <script>
+            console.log('Sending completion message to parent...');
             window.parent.postMessage({
                 type: 'streamlit:processingComplete',
                 message: 'Audio processing completed successfully'
@@ -891,47 +765,48 @@ def main():
     
     # Process audio input with better error handling
     if js_audio_input:
-        # Use improved audio processing function
-        transcription, status = process_audio_safely(js_audio_input, max_size_mb=50)
-        
-        if transcription:
-            # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-            print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State:")
-            print(f"📝 Audio content extracted: \"{transcription}\"")
-            print(f"📝 Audio content length: {len(transcription)} characters")
-            print(f"📝 Audio content words: {len(transcription.split())} words")
-            print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State")
+        try:
+            # Use improved audio processing function
+            transcription, status = process_audio_safely(js_audio_input, max_size_mb=50)
             
-            # Add transcription as user message
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": transcription,
-                "timestamp": time.strftime("%H:%M")
-            })
-            st.session_state.is_processing = True
-            # Disable automatic AI response for speech-to-text only mode
-            # response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
-            # if response:
-            #     audio_data = text_to_speech(response)
-            #     st.session_state.messages.append({
-            #         "role": "assistant", 
-            #         "content": response,
-            #         "timestamp": time.strftime("%H:%M"),
-            #         "audio": audio_data
-            #     })
-            #     print(f"🤖 AI Response: {response}")
-            # else:
-            #     st.error(status)
-            # print(f"❌ API Error: {status}")
-        else:
-            st.error(status)
-            print(f"❌ Transcription Error: {status}")
+            if transcription:
+                # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
+                print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State:")
+                print(f"📝 Audio content extracted: \"{transcription}\"")
+                print(f"📝 Audio content length: {len(transcription)} characters")
+                print(f"📝 Audio content words: {len(transcription.split())} words")
+                print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State")
+                
+                user_message = f"🎤 (Audio) {transcription}"
+                st.session_state.messages.append({
+                    "role": "user", 
+                    "content": user_message,
+                    "timestamp": time.strftime("%H:%M")
+                })
+                st.session_state.is_processing = True
+                response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
+                if response:
+                    audio_data = text_to_speech(response)
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": response,
+                        "timestamp": time.strftime("%H:%M"),
+                        "audio": audio_data
+                    })
+                    print(f"🤖 AI Response: {response}")
+                else:
+                    st.error(status)
+                    print(f"❌ API Error: {status}")
+            else:
+                st.error(status)
+                print(f"❌ Transcription Error: {status}")
             
             st.session_state.is_processing = False
             
             # Send completion message to JavaScript
             st.components.v1.html('''
             <script>
+            console.log('Sending completion message to parent...');
             window.parent.postMessage({
                 type: 'streamlit:processingComplete',
                 message: 'Audio processing completed successfully'
@@ -942,139 +817,51 @@ def main():
             st.rerun()
     
     # Process uploaded audio file with better error handling
-    if uploaded_audio and not st.session_state.get('processing_uploaded_audio', False):
-        st.session_state.processing_uploaded_audio = True
-        st.session_state.current_uploaded_file = uploaded_audio
-        
-        print(f"🎤 AUDIO UPLOAD DETECTED:")
-        print(f"📁 File name: {uploaded_audio.name}")
-        print(f"📊 File size: {uploaded_audio.size} bytes")
-        print(f"📋 File type: {uploaded_audio.type}")
-        
-        # Show loading screen
-        with st.spinner("🎤 Processing audio file..."):
-            st.info(f"🔄 Processing: {uploaded_audio.name}")
-        
-        # Debug info on screen
-        st.sidebar.markdown("## 🎤 Audio Processing")
-        st.sidebar.write(f"**Processing file:** {uploaded_audio.name}")
-        st.sidebar.write(f"**File size:** {uploaded_audio.size} bytes")
-        
-        # Console.log for upload detection
-        st.markdown(f'''
-        <script>
-        console.log("🎤 AUDIO UPLOAD DETECTED:");
-        console.log("📁 File: {uploaded_audio.name}");
-        console.log("📊 Size: {uploaded_audio.size} bytes");
-        console.log("📋 Type: {uploaded_audio.type}");
-        console.log("🔄 Starting processing...");
-        </script>
-        ''', unsafe_allow_html=True)
+    if uploaded_audio:
         
         # Check file size before processing
         max_size_mb = 50
         if uploaded_audio.size > max_size_mb * 1024 * 1024:
             st.error(f"File too large. Max size: {max_size_mb}MB")
-            st.session_state.processing_uploaded_audio = False
             st.rerun()
             return
         
         with tempfile.NamedTemporaryFile(delete=True, suffix=os.path.splitext(uploaded_audio.name)[1]) as temp_file:
             temp_file.write(uploaded_audio.read())
             temp_file.flush()
-            print(f"💾 Temporary file created: {temp_file.name}")
-            
-            print("🔄 Starting transcription...")
-            transcription, status = transcribe_audio(temp_file.name)
-            print(f"📝 Transcription result: {transcription}")
-            print(f"✅ Status: {status}")
-            
-            # Console.log for transcription process
-            st.markdown(f'''
-            <script>
-            console.log("🔄 TRANSCRIPTION COMPLETED:");
-            console.log("📝 Raw result: \\"{transcription}\\"");
-            console.log("✅ Status: {status}");
-            </script>
-            ''', unsafe_allow_html=True)
-            
-            if transcription:
-                # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-                print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Uploaded File:")
-                print(f"📝 Audio content extracted: \"{transcription}\"")
-                print(f"📝 Audio content length: {len(transcription)} characters")
-                print(f"📝 Audio content words: {len(transcription.split())} words")
-                print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Uploaded File")
+            try:
+                transcription, status = transcribe_audio(temp_file.name)
                 
-                # Debug info on screen
-                st.sidebar.markdown("## 📝 Transcription Result")
-                st.sidebar.write(f"**Text:** {transcription}")
-                st.sidebar.write(f"**Length:** {len(transcription)} characters")
-                st.sidebar.write(f"**Words:** {len(transcription.split())} words")
-                
-                # Add transcription as user message
-                st.session_state.messages.append({
-                    "role": "user", 
-                    "content": transcription,
-                    "timestamp": time.strftime("%H:%M")
-                })
-                
-                # Debug: Check if message was added
-                print(f"🔍 DEBUG: Message added to session. Total messages: {len(st.session_state.messages)}")
-                print(f"🔍 DEBUG: Last message: {st.session_state.messages[-1]}")
-                
-                # Console.log for transparency
-                st.markdown(f'''
-                <script>
-                console.log("🎤 AUDIO UPLOAD COMPLETED:");
-                console.log("📁 File: {uploaded_audio.name}");
-                console.log("📊 Size: {uploaded_audio.size} bytes");
-                console.log("📝 Transcription: \\"{transcription}\\"");
-                console.log("📏 Length: {len(transcription)} characters");
-                console.log("📝 Words: {len(transcription.split())} words");
-                console.log("✅ Status: Success");
-                </script>
-                ''', unsafe_allow_html=True)
-                
-                # Continue with API call
-                st.session_state.is_processing = True
-            # Call AI API for response
-            response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
-            if response:
-                audio_data = text_to_speech(response)
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": response,
-                    "timestamp": time.strftime("%H:%M"),
-                    "audio": audio_data
-                })
-            else:
-                st.error(status)
-            #     # Console.log for error
-            #     st.markdown(f'''
-            #     <script>
-            #     console.log("❌ AUDIO PROCESSING ERROR:");
-            #     console.log("📁 File: {uploaded_audio.name}");
-            #     console.log("📊 Size: {uploaded_audio.size} bytes");
-            #     console.log("❌ Error: {status}");
-            #     </script>
-            #     ''', unsafe_allow_html=True)
-                # st.markdown(f'''
-                # <script>
-                # console.log("❌ TRANSCRIPTION ERROR:");
-                # console.log("📁 File: {uploaded_audio.name}");
-                # console.log("📊 Size: {uploaded_audio.size} bytes");
-                # console.log("❌ Error: {status}");
-                # </script>
-                # ''', unsafe_allow_html=True)
+                if transcription:
+                    # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
+                    print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Uploaded File:")
+                    print(f"📝 Audio content extracted: \"{transcription}\"")
+                    print(f"📝 Audio content length: {len(transcription)} characters")
+                    print(f"📝 Audio content words: {len(transcription.split())} words")
+                    print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Uploaded File")
+                    
+                    user_message = f"🎤 (Audio) {transcription}"
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": user_message,
+                        "timestamp": time.strftime("%H:%M")
+                    })
+                    st.session_state.is_processing = True
+                    response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
+                    if response:
+                        audio_data = text_to_speech(response)
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": response,
+                            "timestamp": time.strftime("%H:%M"),
+                            "audio": audio_data
+                        })
+                    else:
+                        st.error(status)
+                else:
+                    st.error(status)
         
         st.session_state.is_processing = False
-        st.session_state.processing_uploaded_audio = False
-        print(f"🔍 DEBUG: About to rerun. Total messages: {len(st.session_state.messages)}")
-        
-        # Increment upload counter to reset file uploader
-        st.session_state.upload_counter += 1
-        print(f"🔍 DEBUG: Upload counter incremented to: {st.session_state.upload_counter}")
         st.rerun()
 
 

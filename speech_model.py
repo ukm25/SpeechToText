@@ -194,15 +194,25 @@ class VietnameseSpeechModel:
             Transcribed text
         """
         try:
+            print(f"🎯 SPEECH MODEL TRANSCRIBE:")
+            print(f"📊 Audio shape: {audio.shape}")
+            print(f"🔊 Sample rate: {sample_rate}")
+            print(f"🤖 Model type: {self.model_type}")
+            print(f"💻 Device: {self.device}")
+            
             if self.model_type == "wav2vec2":
-                return self.transcribe_wav2vec2(audio, sample_rate)
+                result = self.transcribe_wav2vec2(audio, sample_rate)
             elif self.model_type == "whisper":
-                return self.transcribe_whisper(audio, sample_rate)
+                result = self.transcribe_whisper(audio, sample_rate)
             else:
                 raise ValueError(f"Unsupported model type: {self.model_type}")
+            
+            print(f"📝 Transcription result: \"{result}\"")
+            return result
                 
         except Exception as e:
             logger.error(f"Error in transcription: {e}")
+            print(f"❌ Transcription error: {e}")
             raise
     
     def get_model_info(self) -> dict:
