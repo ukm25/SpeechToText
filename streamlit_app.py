@@ -49,16 +49,6 @@ CSS_STYLES = """
         display: none !important;
     }
     
-    /* Ensure file uploader is visible */
-    .stFileUploader {
-        display: block !important;
-        visibility: visible !important;
-    }
-    
-    .stFileUploader > div {
-        display: block !important;
-        visibility: visible !important;
-    }
     
     /* Main container - Fixed 700px height */
     .main .block-container,
@@ -69,6 +59,8 @@ CSS_STYLES = """
     div[data-testid="stAppViewContainer"] {
         height: 700px !important;
         padding: 10px !important;
+        padding-top: 80px !important;
+        padding-bottom: 120px !important;
         margin: 0 !important;
         max-width: 100% !important;
         border-radius: 20px;
@@ -86,7 +78,15 @@ CSS_STYLES = """
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white; padding: 15px 20px; text-align: left; font-size: 18px;
         font-weight: 600; border-radius: 15px 15px 0 0; display: flex;
-        align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        align-items: center; justify-content: space-between; gap: 12px; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 1001 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
     }
     
            .chat-container {
@@ -99,16 +99,11 @@ CSS_STYLES = """
                margin-bottom: 2px;
            }
     
-    .input-area {
-        background: #f0f2f5; padding: 15px 20px; border-top: 1px solid #e4e6ea;
-        border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;
-        display: flex; align-items: center; gap: 10px;
-    }
-    
     .input-container {
         flex: 1; display: flex; align-items: center; background: white;
         border-radius: 25px; padding: 12px 20px; gap: 15px;
         border: 2px solid #e0e0e0; transition: all 0.3s ease;
+        height: 48px; min-height: 48px;
     }
     
     .input-container:focus-within {border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);}
@@ -144,25 +139,111 @@ CSS_STYLES = """
     }
     .send-btn:hover {background: #5a6fd8; transform: scale(1.05); opacity: 1;}
     
-    .chat-footer {
-        background: #f0f2f5; color: #65676b; padding: 10px 20px; text-align: center;
-        font-size: 12px; border-top: 1px solid #e4e6ea; border-left: 1px solid #e0e0e0;
-        border-right: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0;
-        border-radius: 0 0 15px 15px; flex-shrink: 0;
+    .send-button {
+        background: #667eea; color: white; border: none; border-radius: 25px;
+        padding: 12px 24px; font-size: 16px; font-weight: 600;
+        cursor: pointer; transition: all 0.3s ease; opacity: 0.9;
+        min-width: 80px; height: 48px; display: flex; align-items: center; justify-content: center;
+    }
+    .send-button:hover {background: #5a6fd8; transform: scale(1.05); opacity: 1;}
+    
+    
+    /* File uploader - fixed positioning in footer */
+    .stFileUploader {
+        position: fixed !important;
+        bottom: 15px !important;
+        left: 20px !important;
+        width: calc(35% - 10px) !important;
+        height: 60px !important;
+        z-index: 1001 !important;
+        background: #ffffff !important;
+        border: 2px solid #667eea !important;
+        border-radius: 15px !important;
+        box-shadow: 0 -4px 20px rgba(102, 126, 234, 0.15) !important;
+        padding: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
     }
     
-    /* Fixed footer at bottom of screen */
-    .chat-footer[style*="position: fixed"] {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        z-index: 1000 !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
-        border-left: none !important;
-        border-right: none !important;
+    /* Ensure all child elements have white background */
+    .stFileUploader > div {
+        background: #ffffff !important;
     }
+    
+    .stFileUploader > div > div {
+        background: #ffffff !important;
+    }
+    
+    .stFileUploader button {
+        background: #ffffff !important;
+    }
+    
+    /* Target the dropzone specifically */
+    [data-testid="stFileUploaderDropzone"] {
+        background-color: white !important;
+    }
+    
+    /* Hide file uploader label and help text */
+    .stFileUploader label {
+        display: none !important;
+    }
+    
+    .stFileUploader .stTooltip {
+        display: none !important;
+    }
+    
+    .stFileUploader [data-testid="stTooltip"] {
+        display: none !important;
+    }
+    
+    /* Hide file name display after upload */
+    .stFileUploader > div > div {
+        display: none !important;
+    }
+    
+    .stFileUploader .stMarkdown {
+        display: none !important;
+    }
+    
+    .stFileUploader .stText {
+        display: none !important;
+    }
+    
+    /* Hide all child elements that might show file info */
+    .stFileUploader > div > div:not(:first-child) {
+        display: none !important;
+    }
+    
+    .stFileUploader div[data-testid="stMarkdownContainer"] {
+        display: none !important;
+    }
+    
+    .stFileUploader div[data-testid="stText"] {
+        display: none !important;
+    }
+    
+    
+    
+    .input-area {
+        position: fixed !important;
+        bottom: 15px !important;
+        right: 20px !important;
+        width: calc(60% - 20px) !important;
+        height: 60px !important;
+        z-index: 1001 !important;
+        background: #ffffff !important;
+        border: 2px solid #667eea !important;
+        border-radius: 15px !important;
+        box-shadow: 0 -4px 20px rgba(102, 126, 234, 0.15) !important;
+        padding: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+    
+    
     
     /* Message bubbles */
     .message-left, .message-right {
@@ -427,20 +508,18 @@ def main():
     st.markdown('''
     <div style="display: flex; flex-direction: column; overflow: hidden;">
         <div class="chat-title">
-            <span style="font-size: 24px;">🧑‍⚕️</span>
-            <span>AI Tư vấn Tâm lý</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 24px;">🧑‍⚕️</span>
+                <span>AI Tư vấn Tâm lý</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; line-height: 1.2;">
+                <div style="font-weight: 600; font-size: 14px;">Chuyên gia tâm lý</div>
+                <div>Nguyễn Minh Quang, Nguyễn Ngọc Bách, Nguyễn Vũ Dũng</div>
+            </div>
         </div>
     ''', unsafe_allow_html=True)
     
     # Display chat messages
-    print(f"🔍 DEBUG: Total messages in session: {len(st.session_state.messages)}")
-    
-    # Debug info on screen
-    st.sidebar.markdown("## 🔍 Debug Info")
-    st.sidebar.write(f"**Total messages:** {len(st.session_state.messages)}")
-    st.sidebar.write(f"**Processing:** {st.session_state.is_processing}")
-    st.sidebar.write(f"**Processing uploaded:** {st.session_state.processing_uploaded_audio}")
-    st.sidebar.write(f"**Upload counter:** {st.session_state.upload_counter}")
     
     # Clear session button
     if st.sidebar.button("🗑️ Clear All Messages"):
@@ -451,21 +530,9 @@ def main():
     # Test message display
     if len(st.session_state.messages) == 0:
         st.markdown("**No messages yet. Upload an audio file to start!**")
-        
-        # Add a test message to verify display works
-        if st.button("Add Test Message"):
-            st.session_state.messages.append({
-                "role": "user",
-                "content": "This is a test message to verify display works!",
-                "timestamp": "12:34"
-            })
-            st.rerun()
-    
-    print(f"🔍 DEBUG: About to display {len(st.session_state.messages)} messages")
     
     # Display each message with structure: chat-container -> stLayoutWrapper -> stChatMessage
     for i, message in enumerate(st.session_state.messages):
-        print(f"🔍 DEBUG: Message {i}: role={message['role']}, content='{message['content'][:50]}...'")
         
         # Create a container that will be styled as chat-container
         with st.container():
@@ -485,11 +552,9 @@ def main():
             ''', unsafe_allow_html=True)
             
             if message["role"] == "user":
-                print(f"🔍 DEBUG: Displaying user message: {message['content'][:50]}...")
                 with st.chat_message("user"):
                     st.write(message["content"])
             else:
-                print(f"🔍 DEBUG: Displaying AI message: {message['content'][:50]}...")
                 with st.chat_message("assistant"):
                     st.write(message["content"])
                     
@@ -524,27 +589,17 @@ def main():
             </div>
             ''', unsafe_allow_html=True)
     
-    # Complete layout with input only
+    # Simple input area (file uploader will be positioned with CSS)
     st.markdown('''
         <div class="input-area">
             <div class="input-container" id="inputContainer">
-                <button class="voice-btn" id="voiceBtn">
-                    🎤
-                </button>
-                <input type="text" class="input-field" placeholder="Type a message or click 🎤 to upload audio..." id="messageInput">
-                <button class="send-btn" id="sendBtn">➤</button>
+                <input type="text" class="input-field" placeholder="Nhập tin nhắn của bạn..." id="messageInput">
             </div>
+            <button class="send-button" id="sendBtn">Gửi</button>
         </div>
     </div>
     ''', unsafe_allow_html=True)
     
-    # Separate footer at the bottom of the screen
-    st.markdown('''
-    <div class="chat-footer" style="position: fixed; bottom: 0; left: 0; right: 0; background: #f0f2f5; color: #65676b; padding: 10px 20px; text-align: center; font-size: 12px; border-top: 1px solid #e4e6ea; z-index: 1000;">
-        <div style="color: #667eea; font-weight: 600; font-size: 14px; margin-bottom: 5px;">Chuyên gia tâm lý</div>
-        <div style="color: #65676b; font-size: 12px;">Nguyễn Minh Quang, Nguyễn Ngọc Bách, Nguyễn Vũ Dũng</div>
-    </div>
-    ''', unsafe_allow_html=True)
     
     # JavaScript for file upload using components.v1.html
     st.components.v1.html('''
@@ -632,80 +687,6 @@ def main():
         }, 5000);
     }
     
-    function triggerFileUpload() {
-        
-        // Create a temporary file input element
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.wav,.mp3,.flac,.m4a,.ogg,audio/wav,audio/mp3,audio/flac,audio/m4a,audio/ogg';
-        fileInput.style.display = 'none';
-        
-        // Add change event listener
-        fileInput.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                
-                // Show loading screen
-                showLoadingScreen();
-                
-                // Convert to base64 and send to Streamlit
-                const reader = new FileReader();
-                reader.onload = function() {
-                    const base64Audio = reader.result.split(',')[1];
-                    
-                    
-                    // Send to Streamlit by setting the hidden input value
-                    try {
-                        // Try different selectors to find the input
-                        const selectors = [
-                            'input[key="audio_input_from_js"]',
-                            'input[data-testid="audio_input_from_js"]',
-                            'input[aria-label*="audio"]',
-                            'input[type="text"]'
-                        ];
-                        
-                        let audioInput = null;
-                        for (const selector of selectors) {
-                            audioInput = window.parent.document.querySelector(selector);
-                            if (audioInput) {
-                                break;
-                            }
-                        }
-                        
-                        
-            // Send audio data via postMessage
-            const messageData = {
-                type: 'streamlit:audioUpload',
-                data: base64Audio,
-                timestamp: Date.now()
-            };
-            window.parent.postMessage(messageData, '*');
-                    } catch (error) {
-                        // Error handling
-                    }
-                    
-                    // Keep loading screen until processing is complete
-                    // Loading will be hidden when Streamlit sends completion message
-                };
-                reader.onerror = function() {
-                    hideLoadingScreen();
-                    showError('Lỗi đọc file audio');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-        
-        // Add to document and trigger click
-        document.body.appendChild(fileInput);
-        fileInput.click();
-        
-        // Clean up after a delay
-        setTimeout(() => {
-            if (fileInput.parentNode) {
-                fileInput.parentNode.removeChild(fileInput);
-            }
-        }, 1000);
-    }
     
     function sendMessage() {
         const input = document.getElementById('messageInput');
@@ -739,18 +720,14 @@ def main():
             console.log('🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Client side');
             
             // The audio data will be processed by Python side
-        }
     });
+    
     
     // Add event listeners with delay to ensure DOM is ready
     setTimeout(function() {
         
         // Try to find elements in parent document
         const parentDoc = window.parent.document;
-        const voiceBtn = parentDoc.getElementById('voiceBtn');
-        if (voiceBtn) {
-            voiceBtn.addEventListener('click', triggerFileUpload);
-        }
         
         const messageInput = parentDoc.getElementById('messageInput');
         if (messageInput) {
@@ -767,48 +744,20 @@ def main():
     </script>
     ''', height=0)
     
-    # File uploader for audio files (moved to top for testing)
-    st.markdown("---")
-    st.markdown("### 🎤 Upload Audio File")
+    # File uploader for audio files - Now integrated into footer
     uploaded_audio = st.file_uploader(
-        "Choose an audio file", 
+        "", 
         type=['wav', 'mp3', 'flac', 'm4a', 'ogg'], 
         key=f"audio_uploader_{st.session_state.get('upload_counter', 0)}",
-        help="Upload an audio file to transcribe"
+        help=None
     )
-    st.markdown("---")
     
     # Handle input from JavaScript (hidden inputs for communication)
     js_text_input = st.text_input("Hidden Text Input", key="text_input_from_js", label_visibility="collapsed")
     js_audio_input = st.text_input("Hidden Audio Input", key="audio_input_from_js", label_visibility="collapsed")
-    js_processing_status = st.text_input("Hidden Processing Status", key="processing_status_from_js", label_visibility="collapsed")
     
-    # Debug: Show uploader status
-    st.write(f"🔍 DEBUG: uploaded_audio = {uploaded_audio}")
     
-    if uploaded_audio:
-        st.success(f"✅ File uploaded: {uploaded_audio.name}")
-        st.write(f"📊 File size: {uploaded_audio.size} bytes")
-        st.write(f"📋 File type: {uploaded_audio.type}")
-        
-        st.sidebar.write(f"**File uploaded:** {uploaded_audio.name}")
-        st.sidebar.write(f"**File size:** {uploaded_audio.size} bytes")
-        
-        # Console.log for file detection
-        st.markdown(f'''
-        <script>
-        console.log("🔍 FILE UPLOADER DETECTED:");
-        console.log("📁 File: {uploaded_audio.name}");
-        console.log("📊 Size: {uploaded_audio.size} bytes");
-        console.log("📋 Type: {uploaded_audio.type}");
-        console.log("✅ File upload successful!");
-        </script>
-        ''', unsafe_allow_html=True)
-    else:
-        st.info("ℹ️ No file uploaded yet")
-        st.sidebar.write("**File uploaded:** None")
-    
-    # Process text input
+    # Process text input (from input field only)
     if js_text_input:
         user_message = js_text_input
         st.session_state.messages.append({
@@ -816,21 +765,7 @@ def main():
             "content": user_message,
             "timestamp": time.strftime("%H:%M")
         })
-        st.session_state.is_processing = True
-        # Disable automatic AI response for speech-to-text only mode
-        # response, status = call_counseling_api(user_message, st.session_state.api_url, st.session_state.api_key)
-        # if response:
-        #     audio_data = text_to_speech(response)
-        #     st.session_state.messages.append({
-        #         "role": "assistant", 
-        #         "content": response,
-        #         "timestamp": time.strftime("%H:%M"),
-        #         "audio": audio_data
-        #     })
-        # else:
-        #     st.error(status)
         st.session_state.is_processing = False
-        print(f"🔍 DEBUG: About to rerun. Total messages: {len(st.session_state.messages)}")
         st.rerun()
     
     # IMPROVED: Process pending audio with better error handling
@@ -857,20 +792,6 @@ def main():
                 "timestamp": time.strftime("%H:%M")
             })
             st.session_state.is_processing = True
-            # Disable automatic AI response for speech-to-text only mode
-            # response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
-            # if response:
-            #     audio_data = text_to_speech(response)
-            #     st.session_state.messages.append({
-            #         "role": "assistant", 
-            #         "content": response,
-            #         "timestamp": time.strftime("%H:%M"),
-            #         "audio": audio_data
-            #     })
-            #     print(f"🤖 AI Response: {response}")
-            # else:
-            #     st.error(status)
-            # print(f"❌ API Error: {status}")
         else:
             st.error(status)
             print(f"❌ Transcription Error: {status}")
@@ -889,18 +810,18 @@ def main():
             
             st.rerun()
     
-    # Process audio input with better error handling
+    # Process audio input with better error handling (for legacy compatibility)
     if js_audio_input:
         # Use improved audio processing function
         transcription, status = process_audio_safely(js_audio_input, max_size_mb=50)
         
         if transcription:
             # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-            print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State:")
+            print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Legacy Audio Input:")
             print(f"📝 Audio content extracted: \"{transcription}\"")
             print(f"📝 Audio content length: {len(transcription)} characters")
             print(f"📝 Audio content words: {len(transcription.split())} words")
-            print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State")
+            print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Legacy Audio Input")
             
             # Add transcription as user message
             st.session_state.messages.append({
@@ -909,20 +830,6 @@ def main():
                 "timestamp": time.strftime("%H:%M")
             })
             st.session_state.is_processing = True
-            # Disable automatic AI response for speech-to-text only mode
-            # response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
-            # if response:
-            #     audio_data = text_to_speech(response)
-            #     st.session_state.messages.append({
-            #         "role": "assistant", 
-            #         "content": response,
-            #         "timestamp": time.strftime("%H:%M"),
-            #         "audio": audio_data
-            #     })
-            #     print(f"🤖 AI Response: {response}")
-            # else:
-            #     st.error(status)
-            # print(f"❌ API Error: {status}")
         else:
             st.error(status)
             print(f"❌ Transcription Error: {status}")
@@ -941,10 +848,10 @@ def main():
             
             st.rerun()
     
+    
     # Process uploaded audio file with better error handling
     if uploaded_audio and not st.session_state.get('processing_uploaded_audio', False):
         st.session_state.processing_uploaded_audio = True
-        st.session_state.current_uploaded_file = uploaded_audio
         
         print(f"🎤 AUDIO UPLOAD DETECTED:")
         print(f"📁 File name: {uploaded_audio.name}")
@@ -953,23 +860,8 @@ def main():
         
         # Show loading screen
         with st.spinner("🎤 Processing audio file..."):
-            st.info(f"🔄 Processing: {uploaded_audio.name}")
+            pass
         
-        # Debug info on screen
-        st.sidebar.markdown("## 🎤 Audio Processing")
-        st.sidebar.write(f"**Processing file:** {uploaded_audio.name}")
-        st.sidebar.write(f"**File size:** {uploaded_audio.size} bytes")
-        
-        # Console.log for upload detection
-        st.markdown(f'''
-        <script>
-        console.log("🎤 AUDIO UPLOAD DETECTED:");
-        console.log("📁 File: {uploaded_audio.name}");
-        console.log("📊 Size: {uploaded_audio.size} bytes");
-        console.log("📋 Type: {uploaded_audio.type}");
-        console.log("🔄 Starting processing...");
-        </script>
-        ''', unsafe_allow_html=True)
         
         # Check file size before processing
         max_size_mb = 50
@@ -1006,11 +898,6 @@ def main():
                 print(f"📝 Audio content words: {len(transcription.split())} words")
                 print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Uploaded File")
                 
-                # Debug info on screen
-                st.sidebar.markdown("## 📝 Transcription Result")
-                st.sidebar.write(f"**Text:** {transcription}")
-                st.sidebar.write(f"**Length:** {len(transcription)} characters")
-                st.sidebar.write(f"**Words:** {len(transcription.split())} words")
                 
                 # Add transcription as user message
                 st.session_state.messages.append({
@@ -1019,22 +906,7 @@ def main():
                     "timestamp": time.strftime("%H:%M")
                 })
                 
-                # Debug: Check if message was added
-                print(f"🔍 DEBUG: Message added to session. Total messages: {len(st.session_state.messages)}")
-                print(f"🔍 DEBUG: Last message: {st.session_state.messages[-1]}")
                 
-                # Console.log for transparency
-                st.markdown(f'''
-                <script>
-                console.log("🎤 AUDIO UPLOAD COMPLETED:");
-                console.log("📁 File: {uploaded_audio.name}");
-                console.log("📊 Size: {uploaded_audio.size} bytes");
-                console.log("📝 Transcription: \\"{transcription}\\"");
-                console.log("📏 Length: {len(transcription)} characters");
-                console.log("📝 Words: {len(transcription.split())} words");
-                console.log("✅ Status: Success");
-                </script>
-                ''', unsafe_allow_html=True)
                 
                 # Continue with API call
                 st.session_state.is_processing = True
@@ -1050,31 +922,12 @@ def main():
                 })
             else:
                 st.error(status)
-            #     # Console.log for error
-            #     st.markdown(f'''
-            #     <script>
-            #     console.log("❌ AUDIO PROCESSING ERROR:");
-            #     console.log("📁 File: {uploaded_audio.name}");
-            #     console.log("📊 Size: {uploaded_audio.size} bytes");
-            #     console.log("❌ Error: {status}");
-            #     </script>
-            #     ''', unsafe_allow_html=True)
-                # st.markdown(f'''
-                # <script>
-                # console.log("❌ TRANSCRIPTION ERROR:");
-                # console.log("📁 File: {uploaded_audio.name}");
-                # console.log("📊 Size: {uploaded_audio.size} bytes");
-                # console.log("❌ Error: {status}");
-                # </script>
-                # ''', unsafe_allow_html=True)
         
         st.session_state.is_processing = False
         st.session_state.processing_uploaded_audio = False
-        print(f"🔍 DEBUG: About to rerun. Total messages: {len(st.session_state.messages)}")
         
         # Increment upload counter to reset file uploader
         st.session_state.upload_counter += 1
-        print(f"🔍 DEBUG: Upload counter incremented to: {st.session_state.upload_counter}")
         st.rerun()
 
 
