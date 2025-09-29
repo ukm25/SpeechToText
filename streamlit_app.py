@@ -740,11 +740,8 @@ def main():
                 
                 // Khi hoàn thành ghi âm
                 mediaRecorder.onstop = () => {
-                    console.log('🔍 DEBUG: MediaRecorder stopped');
-                    console.log('🔍 DEBUG: Audio chunks:', audioChunks.length);
                     
                     const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    console.log('🔍 DEBUG: Audio blob created, size:', audioBlob.size);
                     
                     uploadAudioFile(audioBlob);
                     
@@ -762,7 +759,6 @@ def main():
                 
                 // Set stop function với proper scope
                 voiceBtn.onclick = function() {
-                    console.log('🔍 DEBUG: Stop button clicked');
                     stopVoiceRecording();
                 };
                 
@@ -795,19 +791,15 @@ def main():
     }
     
     function uploadAudioFile(audioBlob) {
-        console.log('🔍 DEBUG: uploadAudioFile called');
-        console.log('🔍 DEBUG: audioBlob size:', audioBlob.size);
         
         // Create a File object from the blob
         const audioFile = new File([audioBlob], 'voice_recording.wav', { type: 'audio/wav' });
-        console.log('🔍 DEBUG: Created audio file:', audioFile.name, audioFile.size);
         
         // Find the voice recording file uploader
         const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
         const fileInput = parentDoc.querySelector('input[type="file"][accept*="wav"]');
         
         if (fileInput) {
-            console.log('🔍 DEBUG: Found file input, uploading audio file...');
             
             // Create a new FileList with our audio file
             const dataTransfer = new DataTransfer();
@@ -818,9 +810,8 @@ def main():
             const changeEvent = new Event('change', { bubbles: true });
             fileInput.dispatchEvent(changeEvent);
             
-            console.log('🔍 DEBUG: Audio file uploaded to Streamlit');
         } else {
-            console.error('🔍 DEBUG: File input not found');
+            console.error('File input not found');
         }
     }
     
@@ -867,7 +858,6 @@ def main():
             const voiceChatBtn = parentDoc.getElementById('voiceChatBtn');
             if (voiceChatBtn && !voiceChatBtn.dataset.stBound) {
                 voiceChatBtn.onclick = function() {
-                    console.log('🔍 DEBUG: Start button clicked');
                     startVoiceRecording();
                 };
                 voiceChatBtn.dataset.stBound = '1';
