@@ -116,7 +116,7 @@ CSS_STYLES = """
         100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
     }
     
-    .input-field {flex: 1; border: none; outline: none; font-size: 16px; padding: 8px 0; background: transparent; color: #333;}
+    .input-field {flex: 0.5; border: none; outline: none; font-size: 16px; padding: 8px 0; background: transparent; color: #333;}
     .input-field::placeholder {color: #999; font-style: italic;}
     
     .voice-btn {
@@ -147,6 +147,16 @@ CSS_STYLES = """
         min-width: 80px; height: 48px; display: flex; align-items: center; justify-content: center;
     }
     .send-button:hover {background: #5a6fd8; transform: scale(1.05); opacity: 1;}
+    
+    /* Voice chat button */
+    .voice-chat-button {
+        flex: 0.5; background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white; border: none; border-radius: 12px; font-size: 14px;
+        font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+        min-width: 80px; height: 48px; display: flex; align-items: center; justify-content: center;
+        margin-left: 10px;
+    }
+    .voice-chat-button:hover {background: linear-gradient(135deg, #ee5a24, #ff6b6b); transform: scale(1.05); opacity: 1;}
     
     
     /* File uploader - fixed positioning in footer */
@@ -347,13 +357,6 @@ def transcribe_audio(audio_file_path: str) -> Tuple[str, str]:
         # Postprocess - FIXED: use correct method name
         final_text = text_postprocessor.postprocess(transcription)
         
-        # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-        print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION):")
-        print(f"📝 Raw audio content: \"{transcription}\"")
-        print(f"📝 Processed audio content: \"{final_text}\"")
-        print(f"📝 Audio content length: {len(final_text)} characters")
-        print(f"📝 Audio content words: {len(final_text.split())} words")
-        print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION)")
         
         return final_text, "Success"
         
@@ -596,6 +599,7 @@ def main():
             <div class="input-container" id="inputContainer">
                 <input type="text" class="input-field" placeholder="Nhập tin nhắn của bạn..." id="messageInput">
             </div>
+            <button class="voice-chat-button" id="voiceChatBtn">Chat bằng voice</button>
             <button class="send-button" id="sendBtn">Gửi</button>
         </div>
     </div>
@@ -699,17 +703,83 @@ def main():
         const text = (input.value || '').trim();
         if (text) {
             const payload = { text, sid: Date.now(), origin: 'send_button' };
-            console.log('Send button clicked. Payload:', payload);
             window.parent.postMessage({
                 type: 'streamlit:setComponentValue',
                 value: JSON.stringify(payload),
                 key: 'text_input_from_js'
             }, '*');
-            console.log('Posted message to parent.');
             input.value = '';
-        } else {
-            console.log('Send button clicked with empty text. Ignored.');
         }
+    }
+    
+    // Voice recording variables
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    
+    function startVoiceRecording() {
+        const voiceBtn = document.getElementById('voiceChatBtn');
+        
+        // Yêu cầu quyền microphone
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                // Tạo MediaRecorder
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                // Lưu audio chunks
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                
+                // Khi hoàn thành ghi âm
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    uploadAudioFile(audioBlob);
+                    
+                    // Dừng stream
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                // Bắt đầu ghi âm
+                mediaRecorder.start();
+                isRecording = true;
+                
+                // Thay đổi UI
+                voiceBtn.textContent = 'Đang ghi...';
+                voiceBtn.style.background = 'linear-gradient(135deg, #ff4757, #ff3742)';
+                voiceBtn.onclick = stopVoiceRecording;
+                
+            })
+            .catch(err => {
+                console.error('Không thể truy cập microphone:', err);
+                alert('Không thể truy cập microphone. Vui lòng cho phép quyền truy cập.');
+            });
+    }
+    
+    function stopVoiceRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            // Khôi phục UI
+            const voiceBtn = document.getElementById('voiceChatBtn');
+            voiceBtn.textContent = 'Chat bằng voice';
+            voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+            voiceBtn.onclick = startVoiceRecording;
+        }
+    }
+    
+    function uploadAudioFile(audioBlob) {
+        // Tạo FormData để upload file
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'voice_recording.wav');
+        
+        // Gửi file audio qua postMessage (sử dụng logic upload hiện tại)
+        window.parent.postMessage({
+            type: 'streamlit:audioUpload',
+            audioData: audioBlob
+        }, '*');
     }
     
     // Listen for messages from Streamlit to hide loading screen
@@ -726,10 +796,6 @@ def main():
     window.addEventListener('message', function(event) {
         if (event && event.data && event.data.type === 'streamlit:audioUpload') {
             // LOG AUDIO CONTENT (TEXT TRANSCRIPTION) - Client side
-            console.log('🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Client side:');
-            console.log('📝 Audio file uploaded, waiting for transcription...');
-            console.log('📝 Expected audio content: [Will be displayed after processing]');
-            console.log('🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Client side');
             // The audio data will be processed by Python side
         }
     });
@@ -748,16 +814,18 @@ def main():
                     if (e.key === 'Enter') sendMessage();
                 });
                 messageInput.dataset.stBound = '1';
-                console.log('Bound Enter handler to messageInput');
             }
             
             const sendBtn = parentDoc.getElementById('sendBtn');
             if (sendBtn && !sendBtn.dataset.stBound) {
                 sendBtn.addEventListener('click', sendMessage);
                 sendBtn.dataset.stBound = '1';
-                console.log('Bound click handler to sendBtn');
-            } else if (!sendBtn) {
-                console.log('sendBtn not found yet');
+            }
+            
+            const voiceChatBtn = parentDoc.getElementById('voiceChatBtn');
+            if (voiceChatBtn && !voiceChatBtn.dataset.stBound) {
+                voiceChatBtn.addEventListener('click', startVoiceRecording);
+                voiceChatBtn.dataset.stBound = '1';
             }
         } catch (err) {
             // Ignore binding errors (e.g., cross-origin/sandbox), will retry
@@ -781,10 +849,6 @@ def main():
     # Handle input from JavaScript (hidden inputs for communication)
     js_audio_input = st.text_input("Hidden Audio Input", key="audio_input_from_js", label_visibility="collapsed")
 
-    # Debug logs to verify data path from JS to Python
-    if js_text_input:
-        print("[JS->PY] js_text_input raw:", repr(js_text_input))
-
     # Process text input (from input field only)
     user_message = None
     # Parse JSON from js_text_input if available
@@ -796,7 +860,6 @@ def main():
             parsed = None
         if parsed and isinstance(parsed, dict) and parsed.get('origin') == 'send_button':
             user_message = (parsed.get('text') or '').strip()
-            print("[JS->PY] parsed user_message:", repr(user_message))
         else:
             # Fallback: treat as plain text
             user_message = js_text_input.strip()
@@ -839,12 +902,6 @@ def main():
         transcription, status = process_audio_safely(audio_data, max_size_mb=50)
         
         if transcription:
-            # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-            print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State:")
-            print(f"📝 Audio content extracted: \"{transcription}\"")
-            print(f"📝 Audio content length: {len(transcription)} characters")
-            print(f"📝 Audio content words: {len(transcription.split())} words")
-            print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Session State")
             
             # Add transcription as user message
             st.session_state.messages.append({
@@ -855,7 +912,6 @@ def main():
             st.session_state.is_processing = True
         else:
             st.error(status)
-            print(f"❌ Transcription Error: {status}")
             
             st.session_state.is_processing = False
             
@@ -877,12 +933,6 @@ def main():
         transcription, status = process_audio_safely(js_audio_input, max_size_mb=50)
         
         if transcription:
-            # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-            print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Legacy Audio Input:")
-            print(f"📝 Audio content extracted: \"{transcription}\"")
-            print(f"📝 Audio content length: {len(transcription)} characters")
-            print(f"📝 Audio content words: {len(transcription.split())} words")
-            print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Legacy Audio Input")
             
             # Add transcription as user message
             st.session_state.messages.append({
@@ -893,7 +943,6 @@ def main():
             st.session_state.is_processing = True
         else:
             st.error(status)
-            print(f"❌ Transcription Error: {status}")
             
             st.session_state.is_processing = False
             
@@ -914,10 +963,6 @@ def main():
     if uploaded_audio and not st.session_state.get('processing_uploaded_audio', False):
         st.session_state.processing_uploaded_audio = True
         
-        print(f"🎤 AUDIO UPLOAD DETECTED:")
-        print(f"📁 File name: {uploaded_audio.name}")
-        print(f"📊 File size: {uploaded_audio.size} bytes")
-        print(f"📋 File type: {uploaded_audio.type}")
         
         # Show loading screen
         with st.spinner("🎤 Processing audio file..."):
@@ -935,29 +980,10 @@ def main():
         with tempfile.NamedTemporaryFile(delete=True, suffix=os.path.splitext(uploaded_audio.name)[1]) as temp_file:
             temp_file.write(uploaded_audio.read())
             temp_file.flush()
-            print(f"💾 Temporary file created: {temp_file.name}")
-            
-            print("🔄 Starting transcription...")
             transcription, status = transcribe_audio(temp_file.name)
-            print(f"📝 Transcription result: {transcription}")
-            print(f"✅ Status: {status}")
             
-            # Console.log for transcription process
-            st.markdown(f'''
-            <script>
-            console.log("🔄 TRANSCRIPTION COMPLETED:");
-            console.log("📝 Raw result: \\"{transcription}\\"");
-            console.log("✅ Status: {status}");
-            </script>
-            ''', unsafe_allow_html=True)
             
             if transcription:
-                # LOG AUDIO CONTENT (TEXT TRANSCRIPTION)
-                print("🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Uploaded File:")
-                print(f"📝 Audio content extracted: \"{transcription}\"")
-                print(f"📝 Audio content length: {len(transcription)} characters")
-                print(f"📝 Audio content words: {len(transcription.split())} words")
-                print("🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Uploaded File")
                 
                 
                 # Add transcription as user message
