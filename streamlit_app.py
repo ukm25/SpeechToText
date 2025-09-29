@@ -496,6 +496,10 @@ def main():
         st.session_state.processing_uploaded_audio = False
     if 'upload_counter' not in st.session_state:
         st.session_state.upload_counter = 0
+    if 'pending_audio_data' not in st.session_state:
+        st.session_state.pending_audio_data = None
+    if 'processing_voice_audio' not in st.session_state:
+        st.session_state.processing_voice_audio = False
     
     # Check for audio data in URL parameters
     if 'audio_data' in st.query_params:
@@ -530,6 +534,7 @@ def main():
         st.session_state.messages = []
         st.session_state.processing_uploaded_audio = False
         st.rerun()
+    
     
     # Test message display
     if len(st.session_state.messages) == 0:
@@ -718,7 +723,16 @@ def main():
     let isRecording = false;
     
     function startVoiceRecording() {
-        const voiceBtn = document.getElementById('voiceChatBtn');
+        // Tìm element trong parent document
+        const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        const voiceBtn = parentDoc.getElementById('voiceChatBtn');
+        
+        // Null check
+        if (!voiceBtn) {
+            console.error('voiceChatBtn element not found in parent document');
+            return;
+        }
+        
         
         // Yêu cầu quyền microphone
         navigator.mediaDevices.getUserMedia({ audio: true })
@@ -734,7 +748,12 @@ def main():
                 
                 // Khi hoàn thành ghi âm
                 mediaRecorder.onstop = () => {
+                    console.log('🔍 DEBUG: MediaRecorder stopped');
+                    console.log('🔍 DEBUG: Audio chunks:', audioChunks.length);
+                    
                     const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    console.log('🔍 DEBUG: Audio blob created, size:', audioBlob.size);
+                    
                     uploadAudioFile(audioBlob);
                     
                     // Dừng stream
@@ -748,7 +767,12 @@ def main():
                 // Thay đổi UI
                 voiceBtn.textContent = 'Đang ghi...';
                 voiceBtn.style.background = 'linear-gradient(135deg, #ff4757, #ff3742)';
-                voiceBtn.onclick = stopVoiceRecording;
+                
+                // Set stop function với proper scope
+                voiceBtn.onclick = function() {
+                    console.log('🔍 DEBUG: Stop button clicked');
+                    stopVoiceRecording();
+                };
                 
             })
             .catch(err => {
@@ -758,28 +782,54 @@ def main():
     }
     
     function stopVoiceRecording() {
+        
         if (mediaRecorder && isRecording) {
             mediaRecorder.stop();
             isRecording = false;
             
-            // Khôi phục UI
-            const voiceBtn = document.getElementById('voiceChatBtn');
-            voiceBtn.textContent = 'Chat bằng voice';
-            voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
-            voiceBtn.onclick = startVoiceRecording;
+            // Khôi phục UI - tìm element trong parent document
+            const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+            const voiceBtn = parentDoc.getElementById('voiceChatBtn');
+            if (voiceBtn) {
+                voiceBtn.textContent = 'Chat bằng voice';
+                voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+                voiceBtn.onclick = function() {
+                    startVoiceRecording();
+                };
+            } else {
+                console.error('voiceChatBtn not found when trying to restore UI');
+            }
         }
     }
     
     function uploadAudioFile(audioBlob) {
-        // Tạo FormData để upload file
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'voice_recording.wav');
+        console.log('🔍 DEBUG: uploadAudioFile called');
+        console.log('🔍 DEBUG: audioBlob size:', audioBlob.size);
         
-        // Gửi file audio qua postMessage (sử dụng logic upload hiện tại)
-        window.parent.postMessage({
-            type: 'streamlit:audioUpload',
-            audioData: audioBlob
-        }, '*');
+        // Create a File object from the blob
+        const audioFile = new File([audioBlob], 'voice_recording.wav', { type: 'audio/wav' });
+        console.log('🔍 DEBUG: Created audio file:', audioFile.name, audioFile.size);
+        
+        // Find the voice recording file uploader
+        const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        const fileInput = parentDoc.querySelector('input[type="file"][accept*="wav"]');
+        
+        if (fileInput) {
+            console.log('🔍 DEBUG: Found file input, uploading audio file...');
+            
+            // Create a new FileList with our audio file
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(audioFile);
+            fileInput.files = dataTransfer.files;
+            
+            // Trigger change event
+            const changeEvent = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(changeEvent);
+            
+            console.log('🔍 DEBUG: Audio file uploaded to Streamlit');
+        } else {
+            console.error('🔍 DEBUG: File input not found');
+        }
     }
     
     // Listen for messages from Streamlit to hide loading screen
@@ -824,7 +874,10 @@ def main():
             
             const voiceChatBtn = parentDoc.getElementById('voiceChatBtn');
             if (voiceChatBtn && !voiceChatBtn.dataset.stBound) {
-                voiceChatBtn.addEventListener('click', startVoiceRecording);
+                voiceChatBtn.onclick = function() {
+                    console.log('🔍 DEBUG: Start button clicked');
+                    startVoiceRecording();
+                };
                 voiceChatBtn.dataset.stBound = '1';
             }
         } catch (err) {
@@ -848,6 +901,17 @@ def main():
     
     # Handle input from JavaScript (hidden inputs for communication)
     js_audio_input = st.text_input("Hidden Audio Input", key="audio_input_from_js", label_visibility="collapsed")
+    
+    # VOICE RECORDING: Hidden file uploader for voice data
+    voice_audio_file = st.file_uploader(
+        "Voice Recording", 
+        type=['wav'], 
+        key="voice_recording_uploader",
+        help=None,
+        label_visibility="collapsed"
+    )
+    
+    
 
     # Process text input (from input field only)
     user_message = None
@@ -892,6 +956,60 @@ def main():
         st.session_state.is_processing = False
         st.rerun()
     
+    # BACKUP: Process audio from session state (in case st.text_input fails)
+    
+    # VOICE RECORDING: Process voice audio file
+    if voice_audio_file and not st.session_state.get('processing_voice_audio', False):
+        st.session_state.processing_voice_audio = True
+        
+        # Check file size before processing
+        max_size_mb = 50
+        if voice_audio_file.size > max_size_mb * 1024 * 1024:
+            st.error(f"Voice file too large. Max size: {max_size_mb}MB")
+            st.session_state.processing_voice_audio = False
+            st.rerun()
+            return
+        
+        with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp_file:
+            temp_file.write(voice_audio_file.read())
+            temp_file.flush()
+            
+            transcription, status = transcribe_audio(temp_file.name)
+            
+            if transcription:
+                # Add transcription as user message
+                st.session_state.messages.append({
+                    "role": "user", 
+                    "content": transcription,
+                    "timestamp": time.strftime("%H:%M")
+                })
+                st.session_state.is_processing = True
+                
+                # Call AI API for response
+                response, status = call_counseling_api(
+                    transcription, 
+                    st.session_state.api_url, 
+                    st.session_state.api_key
+                )
+                if response:
+                    audio_data = text_to_speech(response)
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": response,
+                        "timestamp": time.strftime("%H:%M"),
+                        "audio": audio_data
+                    })
+                else:
+                    st.error(status)
+            else:
+                st.error(status)
+        
+        st.session_state.is_processing = False
+        st.session_state.processing_voice_audio = False
+        
+        # Reset file uploader
+        st.rerun()
+    
     # IMPROVED: Process pending audio with better error handling
     if st.session_state.pending_audio:
         audio_data = st.session_state.pending_audio
@@ -929,10 +1047,19 @@ def main():
     
     # Process audio input with better error handling (for legacy compatibility)
     if js_audio_input:
+        print("🎤 AUDIO RECEIVED FROM JAVASCRIPT:")
+        print(f"📊 Audio data length: {len(js_audio_input)} characters")
+        print("🔄 Starting Whisper transcription...")
+        
         # Use improved audio processing function
         transcription, status = process_audio_safely(js_audio_input, max_size_mb=50)
         
         if transcription:
+            print("✅ WHISPER TRANSCRIPTION SUCCESSFUL:")
+            print(f"📝 Raw transcription: \"{transcription}\"")
+            print(f"📏 Transcription length: {len(transcription)} characters")
+            print(f"📊 Word count: {len(transcription.split())} words")
+            print("🎤 END WHISPER TRANSCRIPTION")
             
             # Add transcription as user message
             st.session_state.messages.append({
@@ -941,6 +1068,17 @@ def main():
                 "timestamp": time.strftime("%H:%M")
             })
             st.session_state.is_processing = True
+            
+            # Send transcription result to JavaScript console
+            st.components.v1.html(f'''
+            <script>
+            console.log("🎤 WHISPER TRANSCRIPTION RESULT:");
+            console.log("📝 Audio content: \\"{transcription}\\"");
+            console.log("📏 Length: {len(transcription)} characters");
+            console.log("📊 Words: {len(transcription.split())} words");
+            console.log("✅ Transcription completed successfully!");
+            </script>
+            ''', height=0)
         else:
             st.error(status)
             
