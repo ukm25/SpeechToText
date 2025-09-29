@@ -690,14 +690,25 @@ def main():
     
     
     function sendMessage() {
-        const input = document.getElementById('messageInput');
-        if (input.value.trim()) {
+        const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+        const input = parentDoc.getElementById('messageInput');
+        if (!input) {
+            console.warn('messageInput not found in parent document');
+            return;
+        }
+        const text = (input.value || '').trim();
+        if (text) {
+            const payload = { text, sid: Date.now(), origin: 'send_button' };
+            console.log('Send button clicked. Payload:', payload);
             window.parent.postMessage({
                 type: 'streamlit:setComponentValue',
-                value: input.value,
+                value: JSON.stringify(payload),
                 key: 'text_input_from_js'
             }, '*');
+            console.log('Posted message to parent.');
             input.value = '';
+        } else {
+            console.log('Send button clicked with empty text. Ignored.');
         }
     }
     
@@ -713,59 +724,108 @@ def main():
     
     // Listen for audio upload messages
     window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'streamlit:audioUpload') {
+        if (event && event.data && event.data.type === 'streamlit:audioUpload') {
             // LOG AUDIO CONTENT (TEXT TRANSCRIPTION) - Client side
             console.log('🎤 AUDIO CONTENT (TEXT TRANSCRIPTION) - Client side:');
             console.log('📝 Audio file uploaded, waiting for transcription...');
             console.log('📝 Expected audio content: [Will be displayed after processing]');
             console.log('🎤 END AUDIO CONTENT (TEXT TRANSCRIPTION) - Client side');
-            
             // The audio data will be processed by Python side
+        }
     });
     
     
-    // Add event listeners with delay to ensure DOM is ready
-    setTimeout(function() {
-        
-        // Try to find elements in parent document
-        const parentDoc = window.parent.document;
-        
-        const messageInput = parentDoc.getElementById('messageInput');
-        if (messageInput) {
-            messageInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') sendMessage();
-            });
+    // Robustly (re)attach handlers to parent DOM elements
+    const ATTACH_INTERVAL_MS = 500;
+    const attachTimer = setInterval(function() {
+        try {
+            const parentDoc = window.parent && window.parent.document ? window.parent.document : null;
+            if (!parentDoc) return;
+            
+            const messageInput = parentDoc.getElementById('messageInput');
+            if (messageInput && !messageInput.dataset.stBound) {
+                messageInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') sendMessage();
+                });
+                messageInput.dataset.stBound = '1';
+                console.log('Bound Enter handler to messageInput');
+            }
+            
+            const sendBtn = parentDoc.getElementById('sendBtn');
+            if (sendBtn && !sendBtn.dataset.stBound) {
+                sendBtn.addEventListener('click', sendMessage);
+                sendBtn.dataset.stBound = '1';
+                console.log('Bound click handler to sendBtn');
+            } else if (!sendBtn) {
+                console.log('sendBtn not found yet');
+            }
+        } catch (err) {
+            // Ignore binding errors (e.g., cross-origin/sandbox), will retry
         }
-        
-        const sendBtn = parentDoc.getElementById('sendBtn');
-        if (sendBtn) {
-            sendBtn.addEventListener('click', sendMessage);
-        }
-    }, 1000);
+    }, ATTACH_INTERVAL_MS);
     </script>
     ''', height=0)
     
+    # Hidden text input to receive messages from JS
+    js_text_input = st.text_input("Hidden Text Input", key="text_input_from_js", label_visibility="collapsed")
+
     # File uploader for audio files - Now integrated into footer
     uploaded_audio = st.file_uploader(
-        "", 
+        "Tải tệp audio", 
         type=['wav', 'mp3', 'flac', 'm4a', 'ogg'], 
         key=f"audio_uploader_{st.session_state.get('upload_counter', 0)}",
-        help=None
+        help=None,
+        label_visibility="collapsed"
     )
     
     # Handle input from JavaScript (hidden inputs for communication)
-    js_text_input = st.text_input("Hidden Text Input", key="text_input_from_js", label_visibility="collapsed")
     js_audio_input = st.text_input("Hidden Audio Input", key="audio_input_from_js", label_visibility="collapsed")
-    
-    
-    # Process text input (from input field only)
+
+    # Debug logs to verify data path from JS to Python
     if js_text_input:
-        user_message = js_text_input
+        print("[JS->PY] js_text_input raw:", repr(js_text_input))
+
+    # Process text input (from input field only)
+    user_message = None
+    # Parse JSON from js_text_input if available
+    if js_text_input:
+        parsed = None
+        try:
+            parsed = json.loads(js_text_input)
+        except Exception as e:
+            parsed = None
+        if parsed and isinstance(parsed, dict) and parsed.get('origin') == 'send_button':
+            user_message = (parsed.get('text') or '').strip()
+            print("[JS->PY] parsed user_message:", repr(user_message))
+        else:
+            # Fallback: treat as plain text
+            user_message = js_text_input.strip()
+
+    if user_message and st.session_state.get("last_sent_text") != user_message:
         st.session_state.messages.append({
             "role": "user", 
             "content": user_message,
             "timestamp": time.strftime("%H:%M")
         })
+        st.session_state.is_processing = True
+        # Call AI API for response (mirror upload behavior)
+        response, status = call_counseling_api(
+            user_message, 
+            st.session_state.api_url, 
+            st.session_state.api_key
+        )
+        if response:
+            audio_data = text_to_speech(response)
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": response,
+                "timestamp": time.strftime("%H:%M"),
+                "audio": audio_data
+            })
+        else:
+            st.error(status)
+        # Ghi nhận nội dung đã xử lý để tránh xử lý lặp lại
+        st.session_state["last_sent_text"] = user_message
         st.session_state.is_processing = False
         st.rerun()
     
