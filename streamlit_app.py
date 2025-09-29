@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Page config
 st.set_page_config(
-    page_title="AI Tư vấn Tâm lý",
+    page_title="AI Psychological Counseling",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -116,7 +116,7 @@ CSS_STYLES = """
         100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
     }
     
-    .input-field {flex: 0.5; border: none; outline: none; font-size: 16px; padding: 8px 0; background: transparent; color: #333;}
+    .input-field {flex: 0.3; border: none; outline: none; font-size: 16px; padding: 8px 0; background: transparent; color: #333;}
     .input-field::placeholder {color: #999; font-style: italic;}
     
     .voice-btn {
@@ -164,7 +164,7 @@ CSS_STYLES = """
         position: fixed !important;
         bottom: 15px !important;
         left: 20px !important;
-        width: calc(35% - 10px) !important;
+        width: calc(40% - 10px) !important;
         height: 60px !important;
         z-index: 1001 !important;
         background: #ffffff !important;
@@ -241,7 +241,7 @@ CSS_STYLES = """
         position: fixed !important;
         bottom: 15px !important;
         right: 20px !important;
-        width: calc(60% - 20px) !important;
+        width: calc(58% - 20px) !important;
         height: 60px !important;
         z-index: 1001 !important;
         background: #ffffff !important;
@@ -419,11 +419,11 @@ def decrypt_text(encrypted_hex: str, key: str = "counseling_key") -> str:
 def mock_counseling_response(text: str) -> str:
     """Mock counseling response for demo purposes"""
     responses = [
-        "Tôi hiểu cảm xúc của bạn. Hãy chia sẻ thêm về tình huống này.",
-        "Điều này có vẻ rất khó khăn. Bạn đã thử cách nào để đối phó chưa?",
-        "Cảm ơn bạn đã tin tưởng chia sẻ. Hãy cùng tìm hiểu sâu hơn về vấn đề này.",
-        "Tôi cảm nhận được sự lo lắng của bạn. Hãy thử hít thở sâu và chia sẻ thêm.",
-        "Đây là một bước tích cực khi bạn tìm kiếm sự giúp đỡ. Hãy nói thêm về cảm xúc của bạn."
+        "I understand your feelings. Please share more about this situation.",
+        "This seems very difficult. What methods have you tried to cope with this?",
+        "Thank you for trusting me to share. Let's explore this issue more deeply.",
+        "I can sense your anxiety. Try taking a deep breath and share more.",
+        "This is a positive step in seeking help. Please tell me more about your feelings."
     ]
     return responses[hash(text) % len(responses)]
 
@@ -490,24 +490,16 @@ def main():
         st.session_state.api_key = "demo_key_123"
     if 'is_processing' not in st.session_state:
         st.session_state.is_processing = False
-    if 'pending_audio' not in st.session_state:
-        st.session_state.pending_audio = None
     if 'processing_uploaded_audio' not in st.session_state:
         st.session_state.processing_uploaded_audio = False
     if 'upload_counter' not in st.session_state:
         st.session_state.upload_counter = 0
-    if 'pending_audio_data' not in st.session_state:
-        st.session_state.pending_audio_data = None
     if 'processing_voice_audio' not in st.session_state:
         st.session_state.processing_voice_audio = False
+    if 'voice_upload_counter' not in st.session_state:
+        st.session_state.voice_upload_counter = 0
     
-    # Check for audio data in URL parameters
-    if 'audio_data' in st.query_params:
-        audio_data = st.query_params['audio_data']
-        if audio_data and not st.session_state.pending_audio:
-            st.session_state.pending_audio = audio_data
-            # Clear the URL parameter
-            st.query_params.clear()
+    # Audio processing is now handled by file uploaders only
     
     # Apply CSS
     st.markdown(CSS_STYLES, unsafe_allow_html=True)
@@ -518,11 +510,11 @@ def main():
         <div class="chat-title">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 24px;">🏥</span>
-                <span>AI Tư vấn Tâm lý</span>
+                <span>AI Psychological Counseling</span>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; line-height: 1.2;">
-                <div style="font-weight: 600; font-size: 14px;">Chuyên gia tâm lý</div>
-                <div>Nguyễn Minh Quang, Nguyễn Ngọc Bách, Nguyễn Vũ Dũng</div>
+                <div style="font-weight: 600; font-size: 14px;">Psychological Expert</div>
+                <div>Nguyen Minh Quang, Nguyen Ngoc Bach, Nguyen Vu Dung</div>
             </div>
         </div>
     ''', unsafe_allow_html=True)
@@ -602,10 +594,10 @@ def main():
     st.markdown('''
         <div class="input-area">
             <div class="input-container" id="inputContainer">
-                <input type="text" class="input-field" placeholder="Nhập tin nhắn của bạn..." id="messageInput">
+                <input type="text" class="input-field" placeholder="Enter your message..." id="messageInput">
             </div>
-            <button class="voice-chat-button" id="voiceChatBtn">Chat bằng voice</button>
-            <button class="send-button" id="sendBtn">Gửi</button>
+            <button class="voice-chat-button" id="voiceChatBtn">Voice Chat</button>
+            <button class="send-button" id="sendBtn">Send</button>
         </div>
     </div>
     ''', unsafe_allow_html=True)
@@ -765,7 +757,7 @@ def main():
                 isRecording = true;
                 
                 // Thay đổi UI
-                voiceBtn.textContent = 'Đang ghi...';
+                voiceBtn.textContent = 'Recording...';
                 voiceBtn.style.background = 'linear-gradient(135deg, #ff4757, #ff3742)';
                 
                 // Set stop function với proper scope
@@ -776,8 +768,8 @@ def main():
                 
             })
             .catch(err => {
-                console.error('Không thể truy cập microphone:', err);
-                alert('Không thể truy cập microphone. Vui lòng cho phép quyền truy cập.');
+                console.error('Cannot access microphone:', err);
+                alert('Cannot access microphone. Please allow microphone permission.');
             });
     }
     
@@ -791,7 +783,7 @@ def main():
             const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
             const voiceBtn = parentDoc.getElementById('voiceChatBtn');
             if (voiceBtn) {
-                voiceBtn.textContent = 'Chat bằng voice';
+                voiceBtn.textContent = 'Voice Chat';
                 voiceBtn.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
                 voiceBtn.onclick = function() {
                     startVoiceRecording();
@@ -892,7 +884,7 @@ def main():
 
     # File uploader for audio files - Now integrated into footer
     uploaded_audio = st.file_uploader(
-        "Tải tệp audio", 
+        "Upload Audio File", 
         type=['wav', 'mp3', 'flac', 'm4a', 'ogg'], 
         key=f"audio_uploader_{st.session_state.get('upload_counter', 0)}",
         help=None,
@@ -900,13 +892,13 @@ def main():
     )
     
     # Handle input from JavaScript (hidden inputs for communication)
-    js_audio_input = st.text_input("Hidden Audio Input", key="audio_input_from_js", label_visibility="collapsed")
+    # Note: js_audio_input removed to prevent conflicts with file uploaders
     
     # VOICE RECORDING: Hidden file uploader for voice data
     voice_audio_file = st.file_uploader(
         "Voice Recording", 
-        type=['wav'], 
-        key="voice_recording_uploader",
+        type=['wav', 'mp3', 'm4a', 'flac', 'ogg'], 
+        key=f"voice_recording_uploader_{st.session_state.get('voice_upload_counter', 0)}",
         help=None,
         label_visibility="collapsed"
     )
@@ -956,10 +948,10 @@ def main():
         st.session_state.is_processing = False
         st.rerun()
     
-    # BACKUP: Process audio from session state (in case st.text_input fails)
+    # Audio processing is now handled by file uploaders only
     
-    # VOICE RECORDING: Process voice audio file
-    if voice_audio_file and not st.session_state.get('processing_voice_audio', False):
+    # VOICE RECORDING: Process voice audio file (only if not processing other audio)
+    if voice_audio_file and not st.session_state.get('processing_voice_audio', False) and not st.session_state.get('processing_uploaded_audio', False):
         st.session_state.processing_voice_audio = True
         
         # Check file size before processing
@@ -970,7 +962,7 @@ def main():
             st.rerun()
             return
         
-        with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp_file:
+        with tempfile.NamedTemporaryFile(delete=True, suffix=os.path.splitext(voice_audio_file.name)[1]) as temp_file:
             temp_file.write(voice_audio_file.read())
             temp_file.flush()
             
@@ -1007,105 +999,18 @@ def main():
         st.session_state.is_processing = False
         st.session_state.processing_voice_audio = False
         
-        # Reset file uploader
+        # Reset voice file uploader to prevent loop
+        st.session_state.voice_upload_counter = st.session_state.get('voice_upload_counter', 0) + 1
         st.rerun()
     
-    # IMPROVED: Process pending audio with better error handling
-    if st.session_state.pending_audio:
-        audio_data = st.session_state.pending_audio
-        st.session_state.pending_audio = None  # Clear pending audio
-        
-        
-        # Use improved audio processing function
-        transcription, status = process_audio_safely(audio_data, max_size_mb=50)
-        
-        if transcription:
-            
-            # Add transcription as user message
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": transcription,
-                "timestamp": time.strftime("%H:%M")
-            })
-            st.session_state.is_processing = True
-        else:
-            st.error(status)
-            
-            st.session_state.is_processing = False
-            
-            # Send completion message to JavaScript
-            st.components.v1.html('''
-            <script>
-            window.parent.postMessage({
-                type: 'streamlit:processingComplete',
-                message: 'Audio processing completed successfully'
-            }, '*');
-            </script>
-            ''', height=0)
-            
-            st.rerun()
     
-    # Process audio input with better error handling (for legacy compatibility)
-    if js_audio_input:
-        print("🎤 AUDIO RECEIVED FROM JAVASCRIPT:")
-        print(f"📊 Audio data length: {len(js_audio_input)} characters")
-        print("🔄 Starting Whisper transcription...")
-        
-        # Use improved audio processing function
-        transcription, status = process_audio_safely(js_audio_input, max_size_mb=50)
-        
-        if transcription:
-            print("✅ WHISPER TRANSCRIPTION SUCCESSFUL:")
-            print(f"📝 Raw transcription: \"{transcription}\"")
-            print(f"📏 Transcription length: {len(transcription)} characters")
-            print(f"📊 Word count: {len(transcription.split())} words")
-            print("🎤 END WHISPER TRANSCRIPTION")
-            
-            # Add transcription as user message
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": transcription,
-                "timestamp": time.strftime("%H:%M")
-            })
-            st.session_state.is_processing = True
-            
-            # Send transcription result to JavaScript console
-            st.components.v1.html(f'''
-            <script>
-            console.log("🎤 WHISPER TRANSCRIPTION RESULT:");
-            console.log("📝 Audio content: \\"{transcription}\\"");
-            console.log("📏 Length: {len(transcription)} characters");
-            console.log("📊 Words: {len(transcription.split())} words");
-            console.log("✅ Transcription completed successfully!");
-            </script>
-            ''', height=0)
-        else:
-            st.error(status)
-            
-            st.session_state.is_processing = False
-            
-            # Send completion message to JavaScript
-            st.components.v1.html('''
-            <script>
-            window.parent.postMessage({
-                type: 'streamlit:processingComplete',
-                message: 'Audio processing completed successfully'
-            }, '*');
-            </script>
-            ''', height=0)
-            
-            st.rerun()
-    
-    
-    # Process uploaded audio file with better error handling
-    if uploaded_audio and not st.session_state.get('processing_uploaded_audio', False):
+    # Process uploaded audio file with better error handling (only if not processing voice audio)
+    if uploaded_audio and not st.session_state.get('processing_uploaded_audio', False) and not st.session_state.get('processing_voice_audio', False):
         st.session_state.processing_uploaded_audio = True
-        
         
         # Show loading screen
         with st.spinner("🎤 Processing audio file..."):
             pass
-        
         
         # Check file size before processing
         max_size_mb = 50
@@ -1120,10 +1025,7 @@ def main():
             temp_file.flush()
             transcription, status = transcribe_audio(temp_file.name)
             
-            
             if transcription:
-                
-                
                 # Add transcription as user message
                 st.session_state.messages.append({
                     "role": "user", 
@@ -1131,27 +1033,26 @@ def main():
                     "timestamp": time.strftime("%H:%M")
                 })
                 
-                
-                
-                # Continue with API call
+                # Call AI API for response
                 st.session_state.is_processing = True
-            # Call AI API for response
-            response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
-            if response:
-                audio_data = text_to_speech(response)
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": response,
-                    "timestamp": time.strftime("%H:%M"),
-                    "audio": audio_data
-                })
+                response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
+                if response:
+                    audio_data = text_to_speech(response)
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": response,
+                        "timestamp": time.strftime("%H:%M"),
+                        "audio": audio_data
+                    })
+                else:
+                    st.error(status)
             else:
                 st.error(status)
         
         st.session_state.is_processing = False
         st.session_state.processing_uploaded_audio = False
         
-        # Increment upload counter to reset file uploader
+        # Reset file uploader to prevent loop
         st.session_state.upload_counter += 1
         st.rerun()
 
