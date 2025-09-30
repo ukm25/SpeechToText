@@ -270,22 +270,44 @@ CSS_STYLES = """
         padding: 8px 12px !important;
     }
     
-    /* Typing indicator */
-    .typing-indicator {display: flex; align-items: flex-end; gap: 8px; margin-bottom: 10px;}
-    .typing-bubble {
-        background: #f0f2f5; border-radius: 18px; padding: 12px 16px;
-        border-bottom-left-radius: 4px; display: flex; align-items: center; gap: 4px;
+    /* Processing Loading Overlay */
+    .processing-loading-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: rgba(0, 0, 0, 0.8) !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        z-index: 10000 !important;
+        color: white !important;
+        font-family: Arial, sans-serif !important;
     }
-    .typing-dot {
-        width: 6px; height: 6px; background: #65676b; border-radius: 50%;
-        animation: typing 1.4s infinite;
-    }
-    .typing-dot:nth-child(2) {animation-delay: 0.2s;}
-    .typing-dot:nth-child(3) {animation-delay: 0.4s;}
     
-    @keyframes typing {
-        0%, 60%, 100% {transform: translateY(0);}
-        30% {transform: translateY(-10px);}
+    .processing-loading-content {
+        text-align: center !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        padding: 40px !important;
+        border-radius: 20px !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    .processing-loading-spinner {
+        width: 50px !important;
+        height: 50px !important;
+        border: 4px solid rgba(255, 255, 255, 0.3) !important;
+        border-top: 4px solid #667eea !important;
+        border-radius: 50% !important;
+        animation: processing-spin 1s linear infinite !important;
+        margin: 0 auto 20px auto !important;
+    }
+    
+    @keyframes processing-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 </style>
 """
@@ -343,20 +365,15 @@ def mock_counseling_response(text: str) -> str:
 def call_counseling_api(text: str, api_url: str, api_key: str) -> Tuple[str, str]:
     """Call counseling API"""
     try:
-        # For demo, use mock response
-        if api_url == "https://demo.counseling-api.com":
-            response_text = mock_counseling_response(text)
-            return response_text, "Success"
-        
         # Make API call
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        data = {"message": text}
+        headers = {"Content-Type": "application/json"}
+        data = {"query": text}
         
         response = requests.post(api_url, json=data, headers=headers, timeout=30)
         response.raise_for_status()
         
         result = response.json()
-        response_text = result.get("response", "No response received")
+        response_text = result.get("generated", "No response received")
         
         return response_text, "Success"
         
@@ -387,7 +404,7 @@ def main():
     if 'messages' not in st.session_state:
         st.session_state.messages = []
     if 'api_url' not in st.session_state:
-        st.session_state.api_url = "https://demo.counseling-api.com"
+        st.session_state.api_url = "http://localhost:8000/api/v1/rag/query"
     if 'api_key' not in st.session_state:
         st.session_state.api_key = "demo_key_123"
     if 'is_processing' not in st.session_state:
@@ -478,19 +495,17 @@ def main():
     </script>
     ''', unsafe_allow_html=True)
     
-    # Typing indicator
+    # Processing Loading Overlay - Show at the very end to ensure it's on top
     if st.session_state.is_processing:
-        with st.container():
-            st.markdown('''
-            <div class="typing-indicator">
-                <div class="message-avatar">AI</div>
-                <div class="typing-bubble">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
+        st.markdown('''
+        <div class="processing-loading-overlay" style="z-index: 99999 !important;">
+            <div class="processing-loading-content">
+                <div class="processing-loading-spinner"></div>
+                <div style="font-size: 20px; margin-bottom: 10px; font-weight: 600;">Processing audio...</div>
+                <div style="font-size: 14px; opacity: 0.8;">Convert speech to text and generate advisory responses</div>
             </div>
-            ''', unsafe_allow_html=True)
+        </div>
+        ''', unsafe_allow_html=True)
     
     
     # Independent Voice Chat Button (positioned separately like file uploader)
@@ -764,12 +779,16 @@ def main():
     # VOICE RECORDING: Process voice audio file (only if not processing other audio)
     if voice_audio_file and not st.session_state.get('processing_voice_audio', False) and not st.session_state.get('processing_uploaded_audio', False):
         st.session_state.processing_voice_audio = True
+        st.session_state.is_processing = True  # Show loading immediately
+        st.rerun()  # Force refresh to show loading overlay
+    elif st.session_state.get('processing_voice_audio', False):
         
         # Check file size before processing
         max_size_mb = 50
         if voice_audio_file.size > max_size_mb * 1024 * 1024:
             st.error(f"Voice file too large. Max size: {max_size_mb}MB")
             st.session_state.processing_voice_audio = False
+            st.session_state.is_processing = False  # Hide loading on error
             st.rerun()
             return
         
@@ -786,8 +805,6 @@ def main():
                     "content": transcription,
                     "timestamp": time.strftime("%H:%M")
                 })
-                st.session_state.is_processing = True
-                
                 # Call AI API for response
                 response, status = call_counseling_api(
                     transcription, 
@@ -812,22 +829,22 @@ def main():
         
         # Reset voice file uploader to prevent loop
         st.session_state.voice_upload_counter = st.session_state.get('voice_upload_counter', 0) + 1
-        st.rerun()
+        st.rerun()  # Refresh frontend to hide loading overlay
     
     
     # Process uploaded audio file with better error handling (only if not processing voice audio)
     if uploaded_audio and not st.session_state.get('processing_uploaded_audio', False) and not st.session_state.get('processing_voice_audio', False):
         st.session_state.processing_uploaded_audio = True
-        
-        # Show loading screen
-        with st.spinner("🎤 Processing audio file..."):
-            pass
+        st.session_state.is_processing = True  # Show loading immediately
+        st.rerun()  # Force refresh to show loading overlay
+    elif st.session_state.get('processing_uploaded_audio', False):
         
         # Check file size before processing
         max_size_mb = 50
         if uploaded_audio.size > max_size_mb * 1024 * 1024:
             st.error(f"File too large. Max size: {max_size_mb}MB")
             st.session_state.processing_uploaded_audio = False
+            st.session_state.is_processing = False  # Hide loading on error
             st.rerun()
             return
         
@@ -845,7 +862,6 @@ def main():
                 })
                 
                 # Call AI API for response
-                st.session_state.is_processing = True
                 response, status = call_counseling_api(transcription, st.session_state.api_url, st.session_state.api_key)
                 if response:
                     audio_data = text_to_speech(response)
@@ -865,7 +881,7 @@ def main():
         
         # Reset file uploader to prevent loop
         st.session_state.upload_counter += 1
-        st.rerun()
+        st.rerun()  # Refresh frontend to hide loading overlay
 
 
 if __name__ == "__main__":
