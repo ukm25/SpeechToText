@@ -466,7 +466,7 @@ def text_to_speech(text: str) -> Optional[bytes]:
     """Convert text to speech using gTTS"""
     try:
         from gtts import gTTS
-        tts = gTTS(text=text, lang='vi', slow=False)
+        tts = gTTS(text=text, lang='en', slow=False)
         audio_buffer = io.BytesIO()
         tts.write_to_fp(audio_buffer)
         audio_buffer.seek(0)
