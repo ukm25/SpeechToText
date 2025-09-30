@@ -7,12 +7,9 @@ import os
 import tempfile
 import logging
 import requests
-import json
 import io
-import hashlib
 import re
 import base64
-import numpy as np
 from typing import Tuple, Optional
 import time
 
@@ -39,15 +36,6 @@ CSS_STYLES = """
     /* Hide Streamlit defaults */
     #MainMenu, footer, header {visibility: hidden;}
     
-    /* Hide hidden inputs completely */
-    .stTextInput > div > div > input[type="text"]:empty {
-        display: none !important;
-    }
-    
-    /* Hide all stTextInput containers that are empty */
-    .stTextInput:has(input[value=""]) {
-        display: none !important;
-    }
     
     
     /* Main container - Fixed 700px height */
@@ -100,24 +88,6 @@ CSS_STYLES = """
                margin-bottom: 2px;
            }
     
-    .input-container {
-        flex: 1; display: flex; align-items: center; background: white;
-        border-radius: 25px; padding: 12px 20px; gap: 15px;
-        border: 2px solid #e0e0e0; transition: all 0.3s ease;
-        height: 48px; min-height: 48px;
-    }
-    
-    .input-container:focus-within {border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);}
-    .input-container.recording {border-color: #ff4757; background: #fff5f5; animation: pulse 1.5s infinite;}
-    
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(255, 71, 87, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
-    }
-    
-    .input-field {flex: 0.3; border: none; outline: none; font-size: 16px; padding: 8px 0; background: transparent; color: #333;}
-    .input-field::placeholder {color: #999; font-style: italic;}
     
     .voice-btn {
         background: none; border: none; color: #667eea; font-size: 24px;
@@ -132,31 +102,39 @@ CSS_STYLES = """
         60% { transform: translateY(-3px); }
     }
     
-    .send-btn {
-        background: #667eea; color: white; border: none; border-radius: 50%;
-        width: 40px; height: 40px; display: flex; align-items: center;
-        justify-content: center; cursor: pointer; font-size: 16px;
-        transition: all 0.3s ease; opacity: 0.7;
-    }
-    .send-btn:hover {background: #5a6fd8; transform: scale(1.05); opacity: 1;}
     
-    .send-button {
-        background: #667eea; color: white; border: none; border-radius: 25px;
-        padding: 12px 24px; font-size: 16px; font-weight: 600;
-        cursor: pointer; transition: all 0.3s ease; opacity: 0.9;
-        min-width: 80px; height: 48px; display: flex; align-items: center; justify-content: center;
-    }
-    .send-button:hover {background: #5a6fd8; transform: scale(1.05); opacity: 1;}
-    
-    /* Voice chat button */
+    /* Voice chat button - independent positioning like file uploader */
     .voice-chat-button {
-        flex: 0.5; background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-        color: white; border: none; border-radius: 12px; font-size: 14px;
-        font-weight: 600; cursor: pointer; transition: all 0.3s ease;
-        min-width: 80px; height: 48px; display: flex; align-items: center; justify-content: center;
-        margin-left: 10px;
+        width: 100% !important;
+        height: 60px !important;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
+        color: white !important; 
+        border: none !important; 
+        border-radius: 12px !important; 
+        font-size: 16px !important;
+        font-weight: 600 !important; 
+        cursor: pointer !important; 
+        transition: all 0.3s ease !important;
+        display: flex !important; 
+        align-items: center !important; 
+        justify-content: center !important;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3) !important;
     }
-    .voice-chat-button:hover {background: linear-gradient(135deg, #ee5a24, #ff6b6b); transform: scale(1.05); opacity: 1;}
+    .voice-chat-button:hover {
+        background: linear-gradient(135deg, #ee5a24, #ff6b6b) !important; 
+        transform: scale(1.05) !important; 
+        opacity: 1 !important;
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4) !important;
+    }
+    
+    /* Voice chat container - independent positioning */
+    .voice-chat-container {
+        position: fixed !important;
+        bottom: 15px !important;
+        right: 20px !important;
+        width: 40% !important;
+        z-index: 1001 !important;
+    }
     
     
     /* File uploader - fixed positioning in footer */
@@ -164,7 +142,7 @@ CSS_STYLES = """
         position: fixed !important;
         bottom: 15px !important;
         left: 20px !important;
-        width: calc(40% - 10px) !important;
+        width: calc(56% - 10px) !important;
         height: 60px !important;
         z-index: 1001 !important;
         background: #ffffff !important;
@@ -237,22 +215,6 @@ CSS_STYLES = """
     
     
     
-    .input-area {
-        position: fixed !important;
-        bottom: 15px !important;
-        right: 20px !important;
-        width: calc(58% - 20px) !important;
-        height: 60px !important;
-        z-index: 1001 !important;
-        background: #ffffff !important;
-        border: 2px solid #667eea !important;
-        border-radius: 15px !important;
-        box-shadow: 0 -4px 20px rgba(102, 126, 234, 0.15) !important;
-        padding: 8px !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 10px !important;
-    }
     
     
     
@@ -342,19 +304,19 @@ def transcribe_audio(audio_file_path: str) -> Tuple[str, str]:
     try:
         audio_preprocessor, speech_model, text_postprocessor = get_components()
         
-        # Preprocess audio - FIXED: preprocess_audio returns (audio, sample_rate)
+        # Preprocess audio
         audio, sample_rate = audio_preprocessor.preprocess_audio(audio_file_path)
         
         if audio is None or len(audio) == 0:
             return None, "Audio preprocessing failed"
         
-        # Transcribe - FIXED: transcribe needs (audio, sample_rate)
+        # Transcribe
         transcription = speech_model.transcribe(audio, sample_rate)
         
         if not transcription or not transcription.strip():
             return None, "Transcription failed"
         
-        # Postprocess - FIXED: use correct method name
+        # Postprocess
         final_text = text_postprocessor.postprocess(transcription)
         
         
@@ -364,57 +326,8 @@ def transcribe_audio(audio_file_path: str) -> Tuple[str, str]:
         logger.error(f"Transcription error: {e}")
         return None, f"Error: {str(e)}"
 
-def process_audio_safely(audio_data: str, max_size_mb: int = 50) -> Tuple[str, str]:
-    """Process audio with size limits and proper error handling"""
-    try:
-        # Check file size before decoding
-        estimated_size = len(audio_data) * 3 / 4  # Base64 to bytes ratio
-        if estimated_size > max_size_mb * 1024 * 1024:
-            return None, f"File too large. Max size: {max_size_mb}MB"
-        
-        # Decode base64
-        audio_bytes = base64.b64decode(audio_data)
-        
-        # Create temp file with proper cleanup
-        with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp_file:
-            temp_file.write(audio_bytes)
-            temp_file.flush()
-            
-            # Process audio
-            return transcribe_audio(temp_file.name)
-            
-    except Exception as e:
-        logger.error(f"Audio processing error: {e}")
-        return None, f"Error: {str(e)}"
 
-def anonymize_text(text: str) -> str:
-    """Remove personal information from text"""
-    # Remove phone numbers
-    text = re.sub(r'\b\d{10,11}\b', '[PHONE]', text)
-    # Remove email addresses
-    text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', text)
-    # Remove common names (basic implementation)
-    common_names = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Phan', 'Vũ', 'Võ', 'Đặng', 'Bùi']
-    for name in common_names:
-        text = re.sub(rf'\b{name}\s+\w+\b', '[NAME]', text)
-    return text
 
-def encrypt_text(text: str, key: str = "counseling_key") -> str:
-    """Simple encryption for text"""
-    key_hash = hashlib.sha256(key.encode()).digest()
-    encrypted = bytearray()
-    for i, byte in enumerate(text.encode()):
-        encrypted.append(byte ^ key_hash[i % len(key_hash)])
-    return encrypted.hex()
-
-def decrypt_text(encrypted_hex: str, key: str = "counseling_key") -> str:
-    """Simple decryption for text"""
-    key_hash = hashlib.sha256(key.encode()).digest()
-    encrypted = bytes.fromhex(encrypted_hex)
-    decrypted = bytearray()
-    for i, byte in enumerate(encrypted):
-        decrypted.append(byte ^ key_hash[i % len(key_hash)])
-    return decrypted.decode()
 
 def mock_counseling_response(text: str) -> str:
     """Mock counseling response for demo purposes"""
@@ -427,7 +340,7 @@ def mock_counseling_response(text: str) -> str:
     ]
     return responses[hash(text) % len(responses)]
 
-def call_counseling_api(text: str, api_url: str, api_key: str, encrypt_data: bool = False, anonymize: bool = False) -> Tuple[str, str]:
+def call_counseling_api(text: str, api_url: str, api_key: str) -> Tuple[str, str]:
     """Call counseling API"""
     try:
         # For demo, use mock response
@@ -435,26 +348,15 @@ def call_counseling_api(text: str, api_url: str, api_key: str, encrypt_data: boo
             response_text = mock_counseling_response(text)
             return response_text, "Success"
         
-        # Process text
-        processed_text = text
-        if anonymize:
-            processed_text = anonymize_text(processed_text)
-        if encrypt_data:
-            processed_text = encrypt_text(processed_text, api_key)
-        
         # Make API call
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        data = {"message": processed_text, "encrypted": encrypt_data}
+        data = {"message": text}
         
         response = requests.post(api_url, json=data, headers=headers, timeout=30)
         response.raise_for_status()
         
         result = response.json()
         response_text = result.get("response", "No response received")
-        
-        # Decrypt if needed
-        if encrypt_data and result.get("encrypted", False):
-            response_text = decrypt_text(response_text, api_key)
         
         return response_text, "Success"
         
@@ -590,16 +492,12 @@ def main():
             </div>
             ''', unsafe_allow_html=True)
     
-    # Simple input area (file uploader will be positioned with CSS)
+    
+    # Independent Voice Chat Button (positioned separately like file uploader)
     st.markdown('''
-        <div class="input-area">
-            <div class="input-container" id="inputContainer">
-                <input type="text" class="input-field" placeholder="Enter your message..." id="messageInput">
-            </div>
+        <div class="voice-chat-container">
             <button class="voice-chat-button" id="voiceChatBtn">Voice Chat</button>
-            <button class="send-button" id="sendBtn">Send</button>
         </div>
-    </div>
     ''', unsafe_allow_html=True)
     
     
@@ -690,24 +588,6 @@ def main():
     }
     
     
-    function sendMessage() {
-        const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
-        const input = parentDoc.getElementById('messageInput');
-        if (!input) {
-            console.warn('messageInput not found in parent document');
-            return;
-        }
-        const text = (input.value || '').trim();
-        if (text) {
-            const payload = { text, sid: Date.now(), origin: 'send_button' };
-            window.parent.postMessage({
-                type: 'streamlit:setComponentValue',
-                value: JSON.stringify(payload),
-                key: 'text_input_from_js'
-            }, '*');
-            input.value = '';
-        }
-    }
     
     // Voice recording variables
     let mediaRecorder = null;
@@ -841,19 +721,6 @@ def main():
             const parentDoc = window.parent && window.parent.document ? window.parent.document : null;
             if (!parentDoc) return;
             
-            const messageInput = parentDoc.getElementById('messageInput');
-            if (messageInput && !messageInput.dataset.stBound) {
-                messageInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') sendMessage();
-                });
-                messageInput.dataset.stBound = '1';
-            }
-            
-            const sendBtn = parentDoc.getElementById('sendBtn');
-            if (sendBtn && !sendBtn.dataset.stBound) {
-                sendBtn.addEventListener('click', sendMessage);
-                sendBtn.dataset.stBound = '1';
-            }
             
             const voiceChatBtn = parentDoc.getElementById('voiceChatBtn');
             if (voiceChatBtn && !voiceChatBtn.dataset.stBound) {
@@ -869,20 +736,16 @@ def main():
     </script>
     ''', height=0)
     
-    # Hidden text input to receive messages from JS
-    js_text_input = st.text_input("Hidden Text Input", key="text_input_from_js", label_visibility="collapsed")
 
     # File uploader for audio files - Now integrated into footer
     uploaded_audio = st.file_uploader(
         "Upload Audio File", 
         type=['wav', 'mp3', 'flac', 'm4a', 'ogg'], 
         key=f"audio_uploader_{st.session_state.get('upload_counter', 0)}",
-        help=None,
+        help="Limit 50MB per file • WAV, MP3, M4A, FLAC, OGG",
         label_visibility="collapsed"
     )
     
-    # Handle input from JavaScript (hidden inputs for communication)
-    # Note: js_audio_input removed to prevent conflicts with file uploaders
     
     # VOICE RECORDING: Hidden file uploader for voice data
     voice_audio_file = st.file_uploader(
@@ -895,48 +758,6 @@ def main():
     
     
 
-    # Process text input (from input field only)
-    user_message = None
-    # Parse JSON from js_text_input if available
-    if js_text_input:
-        parsed = None
-        try:
-            parsed = json.loads(js_text_input)
-        except Exception as e:
-            parsed = None
-        if parsed and isinstance(parsed, dict) and parsed.get('origin') == 'send_button':
-            user_message = (parsed.get('text') or '').strip()
-        else:
-            # Fallback: treat as plain text
-            user_message = js_text_input.strip()
-
-    if user_message and st.session_state.get("last_sent_text") != user_message:
-        st.session_state.messages.append({
-            "role": "user", 
-            "content": user_message,
-            "timestamp": time.strftime("%H:%M")
-        })
-        st.session_state.is_processing = True
-        # Call AI API for response (mirror upload behavior)
-        response, status = call_counseling_api(
-            user_message, 
-            st.session_state.api_url, 
-            st.session_state.api_key
-        )
-        if response:
-            audio_data = text_to_speech(response)
-            st.session_state.messages.append({
-                "role": "assistant", 
-                "content": response,
-                "timestamp": time.strftime("%H:%M"),
-                "audio": audio_data
-            })
-        else:
-            st.error(status)
-        # Ghi nhận nội dung đã xử lý để tránh xử lý lặp lại
-        st.session_state["last_sent_text"] = user_message
-        st.session_state.is_processing = False
-        st.rerun()
     
     # Audio processing is now handled by file uploaders only
     
